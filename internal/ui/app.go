@@ -16,12 +16,10 @@ import (
 )
 
 type TimerUI struct {
-	window     fyne.Window
-	phaseLabel *canvas.Text
-	timerLabel *canvas.Text
-	totalLabel *canvas.Text
-	progress           *canvas.Rectangle
-	progressBackground *canvas.Rectangle
+	window             fyne.Window
+	timerLabel         *canvas.Text
+	totalLabel         *canvas.Text
+	upcomingLabel      *canvas.Text
 	background         *canvas.Rectangle
 
 	playIcon *TappableIcon
@@ -65,24 +63,19 @@ func NewTimerUI(w fyne.Window, e *engine.TimerEngine) *TimerUI {
 }
 
 func (ui *TimerUI) setup() {
-	ui.phaseLabel = canvas.NewText("INITIALIZING", color.NRGBA{R: 200, G: 200, B: 200, A: 255})
-	ui.phaseLabel.TextSize = 8
-	ui.phaseLabel.Alignment = fyne.TextAlignCenter
-
 	ui.timerLabel = canvas.NewText("00:00", color.NRGBA{R: 200, G: 200, B: 200, A: 255})
 	ui.timerLabel.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	ui.timerLabel.TextSize = 28
 	ui.timerLabel.Alignment = fyne.TextAlignCenter
 
-	ui.totalLabel = canvas.NewText("00:00/00:00", color.NRGBA{R: 150, G: 150, B: 150, A: 255})
-	ui.totalLabel.TextSize = 8
+	ui.totalLabel = canvas.NewText("PHASE: 00:00", color.NRGBA{R: 180, G: 220, B: 255, A: 255})
+	ui.totalLabel.TextSize = 10
+	ui.totalLabel.TextStyle = fyne.TextStyle{Bold: true}
 	ui.totalLabel.Alignment = fyne.TextAlignCenter
 
-	ui.progressBackground = canvas.NewRectangle(color.NRGBA{R: 60, G: 60, B: 60, A: 255})
-	ui.progressBackground.SetMinSize(fyne.NewSize(160, 2))
-
-	ui.progress = canvas.NewRectangle(color.NRGBA{R: 50, G: 255, B: 50, A: 255})
-	ui.progress.SetMinSize(fyne.NewSize(0, 2))
+	ui.upcomingLabel = canvas.NewText("NEXT: NONE", color.NRGBA{R: 120, G: 120, B: 120, A: 255})
+	ui.upcomingLabel.TextSize = 7
+	ui.upcomingLabel.Alignment = fyne.TextAlignCenter
 
 	ui.background = canvas.NewRectangle(color.NRGBA{R: 30, G: 30, B: 30, A: 200})
 
@@ -93,13 +86,12 @@ func (ui *TimerUI) setup() {
 	reset := NewTappableIcon(theme.ViewRefreshIcon(), iconSize, func() { ui.engine.Reset() })
 	dash := NewTappableIcon(theme.SettingsIcon(), iconSize, func() { ui.dashboard.Show() })
 
-	// Wrap in stack to ensure hit area even if icon resource is small
 	playWrap := container.NewStack(canvas.NewRectangle(color.Transparent), ui.playIcon)
 	resetWrap := container.NewStack(canvas.NewRectangle(color.Transparent), reset)
 	dashWrap := container.NewStack(canvas.NewRectangle(color.Transparent), dash)
 
 	controls := container.NewHBox(playWrap, resetWrap, dashWrap)
-	topBar := container.NewBorder(nil, nil, nil, controls, container.NewCenter(ui.phaseLabel))
+	topBar := container.NewBorder(nil, nil, nil, controls, container.NewCenter(ui.upcomingLabel))
 
 	content := container.NewStack(
 		ui.background,
@@ -107,12 +99,11 @@ func (ui *TimerUI) setup() {
 			topBar,
 			container.NewCenter(ui.timerLabel),
 			container.NewCenter(ui.totalLabel),
-			container.NewStack(ui.progressBackground, ui.progress),
 		),
 	)
 
 	ui.window.SetContent(content)
-	ui.window.Resize(fyne.NewSize(180, 75))
+	ui.window.Resize(fyne.NewSize(180, 80))
 }
 
 func (ui *TimerUI) formatTime(s int) string {
@@ -120,17 +111,18 @@ func (ui *TimerUI) formatTime(s int) string {
 }
 
 func (ui *TimerUI) OnTick(state engine.TimerState) {
-	ui.phaseLabel.Text = strings.ToUpper(state.CurrentPhase.Name)
-	
 	// Main Focus: ONLY Remaining Session Time
 	ui.timerLabel.Text = ui.formatTime(state.TotalRemainingSeconds)
 	
-	// Ultra-compact: P for Phase, G for Goal
-	ui.totalLabel.Text = fmt.Sprintf("P: %s/%s | G: %s", 
-		ui.formatTime(state.RemainingSeconds), 
-		ui.formatTime(state.CurrentPhase.Duration),
-		ui.formatTime(state.TotalDurationSeconds))
+	// Phase Focus (Emphasized)
+	ui.totalLabel.Text = fmt.Sprintf("%s: %s", 
+		strings.ToUpper(state.CurrentPhase.Name),
+		ui.formatTime(state.RemainingSeconds))
+	ui.totalLabel.Color = color.NRGBA{R: 180, G: 220, B: 255, A: 255} // Light Cyan/Blue for distinction
 	
+	// Upcoming Phase (Subtle)
+	ui.upcomingLabel.Text = "NEXT: " + strings.ToUpper(state.UpcomingPhaseName)
+
 	// Update Play/Pause Icon
 	if state.IsRunning {
 		ui.playIcon.SetResource(theme.MediaPauseIcon())
@@ -138,36 +130,22 @@ func (ui *TimerUI) OnTick(state engine.TimerState) {
 		ui.playIcon.SetResource(theme.MediaPlayIcon())
 	}
 
-	// Progress bar reflects Total Session Progress
-	ratio := 0.0
-	if state.TotalDurationSeconds > 0 {
-		ratio = float64(state.TotalDurationSeconds-state.TotalRemainingSeconds) / float64(state.TotalDurationSeconds)
-	}
-	
-	fullWidth := float64(160) // Compact width
-	ui.progress.SetMinSize(fyne.NewSize(float32(fullWidth*ratio), 2))
-	
 	// Background Alert & Timer Color
 	if state.TotalRemainingSeconds <= state.WarningSeconds && state.IsRunning {
 		ui.timerLabel.Color = color.NRGBA{R: 255, G: 100, B: 0, A: 255}
-		ui.progress.FillColor = color.NRGBA{R: 255, G: 50, B: 50, A: 255}
 		// Flash/Change background to alert
 		ui.background.FillColor = color.NRGBA{R: 100, G: 0, B: 0, A: 180}
 	} else if !state.IsRunning {
 		ui.timerLabel.Color = color.NRGBA{R: 200, G: 200, B: 200, A: 255}
-		ui.progress.FillColor = color.NRGBA{R: 150, G: 150, B: 150, A: 255}
 		ui.background.FillColor = color.NRGBA{R: 30, G: 30, B: 30, A: 200}
 	} else {
 		ui.timerLabel.Color = color.NRGBA{R: 50, G: 255, B: 50, A: 255}
-		ui.progress.FillColor = color.NRGBA{R: 50, G: 255, B: 50, A: 255}
 		ui.background.FillColor = color.NRGBA{R: 30, G: 30, B: 30, A: 200}
 	}
 
-	ui.phaseLabel.Refresh()
 	ui.timerLabel.Refresh()
 	ui.totalLabel.Refresh()
-	ui.progress.Refresh()
-	ui.progressBackground.Refresh()
+	ui.upcomingLabel.Refresh()
 	ui.background.Refresh()
 	ui.playIcon.Refresh()
 }

@@ -14,6 +14,7 @@ type TimerState struct {
 	TotalRemainingSeconds int
 	TotalDurationSeconds  int
 	WarningSeconds        int
+	UpcomingPhaseName     string
 }
 
 type TimerObserver interface {
@@ -137,7 +138,14 @@ func (e *TimerEngine) GetPhases() []domain.Phase {
 }
 
 func (e *TimerEngine) notify() {
+	state := e.state
+	if state.CurrentPhaseIndex < len(e.phases)-1 {
+		state.UpcomingPhaseName = e.phases[state.CurrentPhaseIndex+1].Name
+	} else {
+		state.UpcomingPhaseName = "END"
+	}
+
 	for _, o := range e.observers {
-		o.OnTick(e.state)
+		o.OnTick(state)
 	}
 }
