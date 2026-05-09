@@ -20,8 +20,9 @@ type TimerUI struct {
 	phaseLabel *canvas.Text
 	timerLabel *canvas.Text
 	totalLabel *canvas.Text
-	progress   *widget.ProgressBar
-	background *canvas.Rectangle
+	progress           *canvas.Rectangle
+	progressBackground *canvas.Rectangle
+	background         *canvas.Rectangle
 
 	playBtn      *widget.Button
 	resetBtn     *widget.Button
@@ -56,8 +57,11 @@ func (ui *TimerUI) setup() {
 	ui.totalLabel.TextSize = 10
 	ui.totalLabel.Alignment = fyne.TextAlignCenter
 
-	ui.progress = widget.NewProgressBar()
-	ui.progress.TextFormatter = func() string { return "" }
+	ui.progressBackground = canvas.NewRectangle(color.NRGBA{R: 60, G: 60, B: 60, A: 255})
+	ui.progressBackground.SetMinSize(fyne.NewSize(200, 2))
+
+	ui.progress = canvas.NewRectangle(color.NRGBA{R: 50, G: 255, B: 50, A: 255})
+	ui.progress.SetMinSize(fyne.NewSize(0, 2))
 
 	ui.background = canvas.NewRectangle(color.NRGBA{R: 30, G: 30, B: 30, A: 200})
 
@@ -81,12 +85,12 @@ func (ui *TimerUI) setup() {
 			topBar,
 			container.NewCenter(ui.timerLabel),
 			ui.totalLabel,
-			ui.progress,
+			container.NewPadded(container.NewStack(ui.progressBackground, ui.progress)),
 		),
 	)
 
 	ui.window.SetContent(content)
-	ui.window.Resize(fyne.NewSize(240, 120))
+	ui.window.Resize(fyne.NewSize(240, 110))
 }
 
 func (ui *TimerUI) formatTime(s int) string {
@@ -110,21 +114,31 @@ func (ui *TimerUI) OnTick(state engine.TimerState) {
 	}
 
 	// Progress bar reflects Total Session Progress
-	ui.progress.Max = float64(state.TotalDurationSeconds)
-	ui.progress.Value = float64(state.TotalDurationSeconds - state.TotalRemainingSeconds)
+	ratio := 0.0
+	if state.TotalDurationSeconds > 0 {
+		ratio = float64(state.TotalDurationSeconds-state.TotalRemainingSeconds) / float64(state.TotalDurationSeconds)
+	}
+	
+	// Total width of the container is approx 220
+	fullWidth := ui.window.Content().Size().Width - 20
+	ui.progress.SetMinSize(fyne.NewSize(float32(float64(fullWidth)*ratio), 2))
 	
 	if state.TotalRemainingSeconds < 300 && state.IsRunning { // Red in last 5 mins
 		ui.timerLabel.Color = color.NRGBA{R: 255, G: 100, B: 0, A: 255}
+		ui.progress.FillColor = color.NRGBA{R: 255, G: 100, B: 0, A: 255}
 	} else if !state.IsRunning {
 		ui.timerLabel.Color = color.NRGBA{R: 200, G: 200, B: 200, A: 255}
+		ui.progress.FillColor = color.NRGBA{R: 150, G: 150, B: 150, A: 255}
 	} else {
 		ui.timerLabel.Color = color.NRGBA{R: 50, G: 255, B: 50, A: 255}
+		ui.progress.FillColor = color.NRGBA{R: 50, G: 255, B: 50, A: 255}
 	}
 
 	ui.phaseLabel.Refresh()
 	ui.timerLabel.Refresh()
 	ui.totalLabel.Refresh()
 	ui.progress.Refresh()
+	ui.progressBackground.Refresh()
 	ui.playBtn.Refresh()
 }
 

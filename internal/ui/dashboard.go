@@ -67,11 +67,13 @@ func (d *Dashboard) ShowLibrary() {
 		blueprint := b
 		isActive := d.engine.GetCurrentBlueprintID() == blueprint.ID
 
-		loadBtn := widget.NewButtonWithIcon("", theme.ViewRefreshIcon(), func() {
+		loadBtn := widget.NewButton("Select", func() {
 			d.engine.UpdatePhases(blueprint.Phases)
 			d.engine.SetCurrentBlueprintID(blueprint.ID)
 			d.ShowLibrary() // Refresh to show selection
 		})
+		loadBtn.Importance = widget.HighImportance
+
 		editBtn := widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), func() {
 			d.ShowEditor(&blueprint)
 		})
