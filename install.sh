@@ -34,12 +34,16 @@ echo "📦 Packaging as .app bundle..."
 rm -rf "$APP_NAME.app" "InterviewTimer.app"
 $GOPATH_BIN/fyne package -os darwin $ICON_FLAG -name $APP_NAME -id com.interview.timer
 
-# 5. Install to /Applications
+# 5. Build the CLI binary (after packaging to avoid deletion)
+echo "🛠 Building optimized CLI binary..."
+go build -ldflags="-s -w" -o $BINARY_NAME main.go
+
+# 6. Install to /Applications
 echo "🚚 Installing to /Applications..."
 sudo rm -rf "/Applications/$APP_NAME.app"
 sudo mv "$APP_NAME.app" "/Applications/"
 
-# 6. Install CLI tool (Optional)
+# 7. Install CLI tool (Optional)
 echo "🔗 Installing CLI tool to /usr/local/bin..."
 sudo mv $BINARY_NAME /usr/local/bin/$BINARY_NAME
 

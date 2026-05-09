@@ -2,14 +2,12 @@
 
 A minimalist, "Always-on-Top", frameless interview timer for macOS.
 
-## Features
-- **Frameless Window**: No title bar or borders.
-- **Always on Top**: Stays visible above full-screen IDEs and browsers.
-- **Dual Mode**: Count Up (default) or Count Down (from 45:00).
-- **Draggable**: Click and drag anywhere on the timer to reposition.
-- **Context Menu**: Right-click for Toggle Mode, Reset, and Quit.
-- **Visual Cues**: Green for active, Red when exceeding limit/reaching zero.
-- **Lightweight**: Optimized binary size using stripped debug symbols.
+## New Features (v2)
+- **Click to Start/Pause**: The timer starts in a paused state (grey). Click the window to start/pause.
+- **Phase-Based Timing**: Automatically transitions through customizable interview phases.
+- **Progress Tracking**: Mini progress bar shows progress within the current phase.
+- **Dynamic Color**: Changes from Grey (Paused) to Green (Active) to Orange (Last minute).
+- **Custom Configuration**: Right-click to define your own phases (e.g., `Intro:5,Coding:30,Review:5`).
 
 ## Setup & Quick Installation
 Ensure you have [Go](https://go.dev/dl/) installed. Then run the automated install script:
