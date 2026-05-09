@@ -204,11 +204,23 @@ func (d *Dashboard) ShowEditor(existing *domain.Blueprint) {
 				}
 			}
 		}
-		summaryLabel.SetText(fmt.Sprintf("Allocated: %d / %d mins", currentSumSec/60, targetMins))
-		summaryLabel.Importance = widget.DangerImportance
-		if currentSumSec == targetMins*60 && targetMins > 0 {
+
+		allocatedMins := currentSumSec / 60
+		remainingMins := targetMins - allocatedMins
+		
+		summaryText := fmt.Sprintf("Allocated: %d / %d mins", allocatedMins, targetMins)
+		if remainingMins > 0 {
+			summaryText += fmt.Sprintf(" (%d mins remaining)", remainingMins)
+			summaryLabel.Importance = widget.WarningImportance
+		} else if remainingMins < 0 {
+			summaryText += fmt.Sprintf(" (%d mins OVER)", -remainingMins)
+			summaryLabel.Importance = widget.DangerImportance
+		} else {
+			summaryText += " (Perfect!)"
 			summaryLabel.Importance = widget.SuccessImportance
 		}
+		
+		summaryLabel.SetText(summaryText)
 		summaryLabel.Refresh()
 	}
 
