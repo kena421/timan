@@ -10,15 +10,39 @@ import (
 )
 
 func main() {
-	// 1. Initial State: Default Event Phases
+	// 1. Load Persistence
+	store := domain.NewEventStore()
+	events, _ := store.LoadAll()
+	state := store.LoadState()
+
 	initialPhases := []domain.Phase{
 		{Name: "Intro", Duration: 5 * 60},
 		{Name: "Main Content", Duration: 45 * 60},
 		{Name: "Wrap-up", Duration: 10 * 60},
 	}
+	lastID := ""
+
+	// Find the last used event OR the first available event
+	targetID := state.LastEventID
+	if targetID == "" && len(events) > 0 {
+		targetID = events[0].ID
+	}
+
+	if targetID != "" {
+		for _, e := range events {
+			if e.ID == targetID {
+				initialPhases = e.Phases
+				lastID = e.ID
+				break
+			}
+		}
+	}
 
 	// 2. Initialize Engine
 	timerEngine := engine.NewTimerEngine(initialPhases)
+	if lastID != "" {
+		timerEngine.SetCurrentEventID(lastID)
+	}
 	timerEngine.Start()
 
 	// 3. Initialize App & UI

@@ -15,6 +15,18 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+var (
+	colorNeonGreen   = color.NRGBA{R: 34, G: 197, B: 94, A: 255}
+	colorBrightGreen = color.NRGBA{R: 167, G: 243, B: 208, A: 255}
+	colorGhostGreen  = color.NRGBA{R: 20, G: 60, B: 30, A: 255}
+	colorNeonRed     = color.NRGBA{R: 239, G: 68, B: 68, A: 255}
+	colorMutedGray   = color.NRGBA{R: 100, G: 116, B: 139, A: 255}
+	colorSkyBlue     = color.NRGBA{R: 186, G: 230, B: 253, A: 255}
+	colorBgDeep      = color.NRGBA{R: 9, G: 9, B: 11, A: 245}
+	colorBgWell      = color.NRGBA{R: 39, G: 39, B: 42, A: 255}
+	colorBorderLight = color.NRGBA{R: 63, G: 63, B: 70, A: 255}
+)
+
 // TimerUI handles the main floating window of the application.
 type TimerUI struct {
 	window             fyne.Window
@@ -22,6 +34,7 @@ type TimerUI struct {
 	totalLabel         *canvas.Text
 	upcomingLabel      *canvas.Text
 	background         *canvas.Rectangle
+	border             *canvas.Rectangle
 
 	playIcon *TappableIcon
 
@@ -70,47 +83,72 @@ func NewTimerUI(w fyne.Window, e *engine.TimerEngine) *TimerUI {
 }
 
 func (ui *TimerUI) setup() {
-	ui.timerLabel = canvas.NewText("00:00", color.NRGBA{R: 200, G: 200, B: 200, A: 255})
+	// 1. Scaled Main Timer
+	ui.timerLabel = canvas.NewText("00:00", colorBrightGreen)
 	ui.timerLabel.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	ui.timerLabel.TextSize = 28
+	ui.timerLabel.TextSize = 24 // Reduced from 28
 	ui.timerLabel.Alignment = fyne.TextAlignCenter
 
-	ui.totalLabel = canvas.NewText("PHASE: 00:00", color.NRGBA{R: 180, G: 220, B: 255, A: 255})
+	// 2. Phase Info
+	ui.totalLabel = canvas.NewText("PHASE: 00:00", colorSkyBlue)
 	ui.totalLabel.TextSize = 10
 	ui.totalLabel.TextStyle = fyne.TextStyle{Bold: true}
 	ui.totalLabel.Alignment = fyne.TextAlignCenter
 
-	ui.upcomingLabel = canvas.NewText("", color.NRGBA{R: 120, G: 120, B: 120, A: 255})
+	// 3. Upcoming Hint
+	ui.upcomingLabel = canvas.NewText("NEXT: --", colorMutedGray)
 	ui.upcomingLabel.TextSize = 7
-	ui.upcomingLabel.Alignment = fyne.TextAlignCenter
+	ui.upcomingLabel.TextStyle = fyne.TextStyle{Bold: true}
+	ui.upcomingLabel.Alignment = fyne.TextAlignLeading
 
-	ui.background = canvas.NewRectangle(color.NRGBA{R: 30, G: 30, B: 30, A: 200})
+	// 4. Backgrounds
+	ui.background = canvas.NewRectangle(colorBgDeep)
+	ui.border = canvas.NewRectangle(color.Transparent)
+	ui.border.StrokeColor = colorBorderLight
+	ui.border.StrokeWidth = 1.0
 
-	// Micro Icons (with enlarged hit area)
-	iconSize := fyne.NewSize(16, 16)
-	
+	// 5. Accessible Controls (Larger)
+	iconSize := fyne.NewSize(14, 14) // Increased from 11
 	ui.playIcon = NewTappableIcon(theme.MediaPlayIcon(), iconSize, func() { ui.engine.Toggle() })
 	reset := NewTappableIcon(theme.ViewRefreshIcon(), iconSize, func() { ui.engine.Reset() })
 	dash := NewTappableIcon(theme.SettingsIcon(), iconSize, func() { ui.dashboard.Show() })
 
-	playWrap := container.NewStack(canvas.NewRectangle(color.Transparent), ui.playIcon)
-	resetWrap := container.NewStack(canvas.NewRectangle(color.Transparent), reset)
-	dashWrap := container.NewStack(canvas.NewRectangle(color.Transparent), dash)
+	controlBg := canvas.NewRectangle(colorBgWell)
+	controlBg.CornerRadius = 4
+	
+	// Spaced container for icons
+	iconContainer := container.NewHBox(
+		ui.playIcon,
+		reset,
+		dash,
+	)
+	
+	controlWell := container.NewStack(
+		controlBg,
+		container.NewPadded(iconContainer), // Re-added padding for better "well" feel
+	)
 
-	controls := container.NewHBox(playWrap, resetWrap, dashWrap)
-	topBar := container.NewBorder(nil, nil, nil, controls, container.NewCenter(ui.upcomingLabel))
+	// ASSEMBLY
+	topRow := container.NewBorder(nil, nil, 
+		ui.upcomingLabel, 
+		controlWell, 
+		nil)
+
+	mainLayout := container.NewBorder(
+		topRow,
+		ui.totalLabel,
+		nil, nil,
+		ui.timerLabel,
+	)
 
 	content := container.NewStack(
 		ui.background,
-		container.NewVBox(
-			topBar,
-			container.NewCenter(ui.timerLabel),
-			container.NewCenter(ui.totalLabel),
-		),
+		ui.border,
+		container.NewPadded(mainLayout),
 	)
 
 	ui.window.SetContent(content)
-	ui.window.Resize(fyne.NewSize(180, 80))
+	ui.window.Resize(fyne.NewSize(160, 80))
 }
 
 func (ui *TimerUI) formatTime(s int) string {
@@ -119,51 +157,47 @@ func (ui *TimerUI) formatTime(s int) string {
 
 // OnTick updates the UI with the latest timer state.
 func (ui *TimerUI) OnTick(state engine.TimerState) {
-	// Main Focus: ONLY Remaining Session Time
 	ui.timerLabel.Text = ui.formatTime(state.TotalRemainingSeconds)
-	
-	// Phase Focus (Emphasized)
 	ui.totalLabel.Text = fmt.Sprintf("%s: %s", 
 		strings.ToUpper(state.CurrentPhase.Name),
 		ui.formatTime(state.RemainingSeconds))
-	ui.totalLabel.Color = color.NRGBA{R: 180, G: 220, B: 255, A: 255} // Light Cyan/Blue for distinction
 	
-	// Upcoming Phase (Subtle)
 	if state.UpcomingPhaseName != "" {
 		ui.upcomingLabel.Text = "NEXT: " + strings.ToUpper(state.UpcomingPhaseName)
 	} else {
 		ui.upcomingLabel.Text = ""
 	}
 
-	// Update Play/Pause Icon
 	if state.IsRunning {
 		ui.playIcon.SetResource(theme.MediaPauseIcon())
 	} else {
 		ui.playIcon.SetResource(theme.MediaPlayIcon())
 	}
 
-	// Background Alert & Timer Color
 	if state.TotalRemainingSeconds <= state.WarningSeconds && state.IsRunning {
-		ui.timerLabel.Color = color.NRGBA{R: 255, G: 100, B: 0, A: 255}
-		// Flash/Change background to alert
-		ui.background.FillColor = color.NRGBA{R: 100, G: 0, B: 0, A: 180}
+		ui.timerLabel.Color = colorNeonRed
+		ui.background.FillColor = color.NRGBA{R: 45, G: 10, B: 10, A: 245}
+		ui.border.StrokeColor = colorNeonRed
 	} else if !state.IsRunning {
-		ui.timerLabel.Color = color.NRGBA{R: 200, G: 200, B: 200, A: 255}
-		ui.background.FillColor = color.NRGBA{R: 30, G: 30, B: 30, A: 200}
+		ui.timerLabel.Color = colorGhostGreen
+		ui.background.FillColor = colorBgDeep
+		ui.border.StrokeColor = colorBorderLight
 	} else {
-		ui.timerLabel.Color = color.NRGBA{R: 50, G: 255, B: 50, A: 255}
-		ui.background.FillColor = color.NRGBA{R: 30, G: 30, B: 30, A: 200}
+		ui.timerLabel.Color = colorBrightGreen
+		ui.background.FillColor = colorBgDeep
+		ui.border.StrokeColor = colorBorderLight
 	}
 
 	ui.timerLabel.Refresh()
 	ui.totalLabel.Refresh()
 	ui.upcomingLabel.Refresh()
 	ui.background.Refresh()
+	ui.border.Refresh()
 	ui.playIcon.Refresh()
 }
 
 // Show displays the main timer window and applies platform tweaks.
 func (ui *TimerUI) Show() {
 	ui.window.Show()
-	platform.TweakWindow("Timan") // Updated window title for tweaking
+	platform.TweakWindow("Timan")
 }

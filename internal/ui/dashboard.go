@@ -2,12 +2,14 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"strconv"
 	"strings"
 	"github.com/timan-org/timan/internal/domain"
 	"github.com/timan-org/timan/internal/engine"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
@@ -42,7 +44,7 @@ func (d *Dashboard) Show() {
 	d.window = fyne.CurrentApp().NewWindow("Timan Dashboard")
 	d.mainContent = container.NewStack()
 	d.window.SetContent(d.mainContent)
-	d.window.Resize(fyne.NewSize(500, 600))
+	d.window.Resize(fyne.NewSize(550, 650))
 	
 	d.window.SetOnClosed(func() {
 		d.window = nil
@@ -60,23 +62,12 @@ func (d *Dashboard) ShowLibrary() {
 	if len(events) == 0 {
 		d.mainContent.Objects = []fyne.CanvasObject{container.NewCenter(
 			container.NewVBox(
-				widget.NewLabel("Your library is empty."),
-				widget.NewButton("Create Your First Event", func() { d.ShowEditor(nil) }),
+				widget.NewLabelWithStyle("Your library is empty.", fyne.TextAlignCenter, fyne.TextStyle{Italic: true}),
+				widget.NewButtonWithIcon("Create Your First Event", theme.ContentAddIcon(), func() { d.ShowEditor(nil) }),
 			),
 		)}
 		d.mainContent.Refresh()
 		return
-	}
-
-	// Auto-select first if none active
-	if d.engine.GetCurrentEventID() == "" {
-		e := events[0]
-		wMins := e.WarningValue
-		if e.WarningIsPercent {
-			wMins = (e.WarningValue * e.Total) / 100
-		}
-		d.engine.UpdatePhases(e.Phases, wMins)
-		d.engine.SetCurrentEventID(e.ID)
 	}
 
 	list := container.NewVBox()
@@ -91,6 +82,7 @@ func (d *Dashboard) ShowLibrary() {
 			}
 			d.engine.UpdatePhases(event.Phases, wMins)
 			d.engine.SetCurrentEventID(event.ID)
+			d.store.SaveState(domain.AppState{LastEventID: event.ID}) // Persist last used
 			d.ShowLibrary() // Refresh to show selection
 		})
 		loadBtn.Importance = widget.HighImportance
@@ -104,19 +96,28 @@ func (d *Dashboard) ShowLibrary() {
 
 		info := fmt.Sprintf("%s (%d mins)", event.Name, event.Total)
 		label := widget.NewLabel(info)
+		
+		var row *fyne.Container
 		if isActive {
 			label.Importance = widget.SuccessImportance
-			row := container.NewBorder(nil, nil, widget.NewIcon(theme.ConfirmIcon()), container.NewHBox(loadBtn, editBtn, deleteBtn), label)
-			list.Add(row)
+			label.TextStyle = fyne.TextStyle{Bold: true}
+			row = container.NewBorder(nil, nil, widget.NewIcon(theme.ConfirmIcon()), container.NewHBox(loadBtn, editBtn, deleteBtn), label)
 		} else {
-			row := container.NewBorder(nil, nil, nil, container.NewHBox(loadBtn, editBtn, deleteBtn), label)
-			list.Add(row)
+			row = container.NewBorder(nil, nil, nil, container.NewHBox(loadBtn, editBtn, deleteBtn), label)
 		}
+		
+		// Add a subtle card-like feel
+		bg := canvas.NewRectangle(color.Transparent)
+		if isActive {
+			bg.FillColor = color.NRGBA{R: 0, G: 255, B: 204, A: 10}
+		}
+		list.Add(container.NewStack(bg, container.NewPadded(row)))
 	}
 
 	addBtn := widget.NewButtonWithIcon("Create New Event", theme.ContentAddIcon(), func() {
 		d.ShowEditor(nil)
 	})
+	addBtn.Importance = widget.HighImportance
 
 	simpleBtn := widget.NewButtonWithIcon("Simple Quick Timer", theme.HistoryIcon(), func() {
 		minsEntry := widget.NewEntry()
@@ -141,14 +142,16 @@ func (d *Dashboard) ShowLibrary() {
 		}, d.window)
 	})
 
+	header := container.NewVBox(
+		container.NewPadded(widget.NewLabelWithStyle("Event Library", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})),
+		widget.NewSeparator(),
+	)
+
 	content := container.NewBorder(
-		container.NewVBox(
-			widget.NewLabelWithStyle("Event Library", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-			widget.NewSeparator(),
-		),
-		container.NewVBox(simpleBtn, addBtn),
+		header,
+		container.NewPadded(container.NewVBox(simpleBtn, addBtn)),
 		nil, nil,
-		container.NewVScroll(list),
+		container.NewPadded(container.NewVScroll(list)),
 	)
 
 	d.mainContent.Objects = []fyne.CanvasObject{content}
@@ -333,22 +336,24 @@ func (d *Dashboard) ShowEditor(existing *domain.Event) {
 		addPhaseRow("New Phase", "0")
 	})
 
-	header := container.NewGridWithColumns(3,
+	headerRow := container.NewGridWithColumns(3,
 		container.NewVBox(widget.NewLabel("Event Name"), nameEntry),
 		container.NewVBox(widget.NewLabel("Total Duration (mins)"), totalEntry),
-		container.NewVBox(widget.NewLabel("Alert Threshold (mins or %)"), warningEntry),
+		container.NewVBox(widget.NewLabel("Alert Threshold"), warningEntry),
+	)
+
+	topSection := container.NewVBox(
+		container.NewPadded(widget.NewLabelWithStyle(title, fyne.TextAlignCenter, fyne.TextStyle{Bold: true})),
+		container.NewPadded(headerRow),
+		widget.NewSeparator(),
+		container.NewPadded(phaseHeader),
 	)
 
 	content := container.NewBorder(
-		container.NewVBox(
-			widget.NewLabelWithStyle(title, fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-			header,
-			widget.NewSeparator(),
-			phaseHeader,
-		),
-		container.NewVBox(summaryLabel, container.NewGridWithColumns(3, addBtn, cancelBtn, saveBtn)),
+		topSection,
+		container.NewPadded(container.NewVBox(summaryLabel, container.NewGridWithColumns(3, addBtn, cancelBtn, saveBtn))),
 		nil, nil,
-		container.NewVScroll(rows),
+		container.NewPadded(container.NewVScroll(rows)),
 	)
 
 	d.mainContent.Objects = []fyne.CanvasObject{content}

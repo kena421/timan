@@ -17,9 +17,15 @@ type Event struct {
 	Phases           []Phase `json:"phases"`
 }
 
-// EventStore handles the persistence of Event templates to the local filesystem.
+// EventStore handles the persistence of Event templates and application state.
 type EventStore struct {
-	path string
+	path      string
+	statePath string
+}
+
+// AppState holds persistent application-wide settings.
+type AppState struct {
+	LastEventID string `json:"last_event_id"`
 }
 
 // NewEventStore initializes a new EventStore, creating the configuration directory if it doesn't exist.
@@ -28,8 +34,29 @@ func NewEventStore() *EventStore {
 	configDir := filepath.Join(home, ".config", "timan")
 	os.MkdirAll(configDir, 0755)
 	return &EventStore{
-		path: filepath.Join(configDir, "events.json"), // Renamed from blueprints.json for consistency
+		path:      filepath.Join(configDir, "events.json"),
+		statePath: filepath.Join(configDir, "state.json"),
 	}
+}
+
+// SaveState persists the current application state.
+func (s *EventStore) SaveState(state AppState) error {
+	data, err := json.Marshal(state)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(s.statePath, data, 0644)
+}
+
+// LoadState retrieves the persisted application state.
+func (s *EventStore) LoadState() AppState {
+	data, err := os.ReadFile(s.statePath)
+	if err != nil {
+		return AppState{}
+	}
+	var state AppState
+	json.Unmarshal(data, &state)
+	return state
 }
 
 // SaveAll persists a slice of Events to the store.
