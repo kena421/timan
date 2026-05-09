@@ -2,7 +2,7 @@ package engine
 
 import (
 	"time"
-	"github.com/timan-org/timan/internal/domain"
+	"github.com/kena421/timan/internal/domain"
 )
 
 // TimerState holds the current snapshot of the timer's progress and status.

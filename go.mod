@@ -1,4 +1,4 @@
-module github.com/timan-org/timan
+module github.com/kena421/timan
 
 go 1.26.3
 

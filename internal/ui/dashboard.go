@@ -5,8 +5,8 @@ import (
 	"image/color"
 	"strconv"
 	"strings"
-	"github.com/timan-org/timan/internal/domain"
-	"github.com/timan-org/timan/internal/engine"
+	"github.com/kena421/timan/internal/domain"
+	"github.com/kena421/timan/internal/engine"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/timan-org/timan/internal/domain"
-	"github.com/timan-org/timan/internal/engine"
-	"github.com/timan-org/timan/internal/ui"
+	"github.com/kena421/timan/internal/domain"
+	"github.com/kena421/timan/internal/engine"
+	"github.com/kena421/timan/internal/ui"
 
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/theme"
