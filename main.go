@@ -5,7 +5,6 @@ import (
 	"github.com/kena421/timan/internal/engine"
 	"github.com/kena421/timan/internal/ui"
 
-	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 )
 
