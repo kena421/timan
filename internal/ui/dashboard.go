@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"timan/internal/domain"
-	"timan/internal/engine"
+	"github.com/timan-org/timan/internal/domain"
+	"github.com/timan-org/timan/internal/engine"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -15,28 +15,31 @@ import (
 	"github.com/google/uuid"
 )
 
+// Dashboard provides a user interface for managing Event templates and library.
 type Dashboard struct {
 	window fyne.Window
 	engine *engine.TimerEngine
-	store  *domain.BlueprintStore
+	store  *domain.EventStore
 	
 	// State management
 	mainContent *fyne.Container
 }
 
+// NewDashboard creates a new Dashboard instance.
 func NewDashboard(ui *TimerUI, e *engine.TimerEngine) *Dashboard {
 	return &Dashboard{
 		engine: e,
-		store:  domain.NewBlueprintStore(),
+		store:  domain.NewEventStore(),
 	}
 }
 
+// Show displays the Dashboard window.
 func (d *Dashboard) Show() {
 	if d.window != nil {
 		d.window.Close()
 	}
 
-	d.window = fyne.CurrentApp().NewWindow("Timer Dashboard")
+	d.window = fyne.CurrentApp().NewWindow("Timan Dashboard")
 	d.mainContent = container.NewStack()
 	d.window.SetContent(d.mainContent)
 	d.window.Resize(fyne.NewSize(500, 600))
@@ -50,14 +53,15 @@ func (d *Dashboard) Show() {
 	d.window.RequestFocus()
 }
 
+// ShowLibrary displays the list of saved Event templates.
 func (d *Dashboard) ShowLibrary() {
-	blueprints, _ := d.store.LoadAll()
+	events, _ := d.store.LoadAll()
 
-	if len(blueprints) == 0 {
+	if len(events) == 0 {
 		d.mainContent.Objects = []fyne.CanvasObject{container.NewCenter(
 			container.NewVBox(
 				widget.NewLabel("Your library is empty."),
-				widget.NewButton("Create Your First Blueprint", func() { d.ShowEditor(nil) }),
+				widget.NewButton("Create Your First Event", func() { d.ShowEditor(nil) }),
 			),
 		)}
 		d.mainContent.Refresh()
@@ -65,40 +69,40 @@ func (d *Dashboard) ShowLibrary() {
 	}
 
 	// Auto-select first if none active
-	if d.engine.GetCurrentBlueprintID() == "" {
-		b := blueprints[0]
-		wMins := b.WarningValue
-		if b.WarningIsPercent {
-			wMins = (b.WarningValue * b.Total) / 100
+	if d.engine.GetCurrentEventID() == "" {
+		e := events[0]
+		wMins := e.WarningValue
+		if e.WarningIsPercent {
+			wMins = (e.WarningValue * e.Total) / 100
 		}
-		d.engine.UpdatePhases(b.Phases, wMins)
-		d.engine.SetCurrentBlueprintID(b.ID)
+		d.engine.UpdatePhases(e.Phases, wMins)
+		d.engine.SetCurrentEventID(e.ID)
 	}
 
 	list := container.NewVBox()
-	for _, b := range blueprints {
-		blueprint := b
-		isActive := d.engine.GetCurrentBlueprintID() == blueprint.ID
+	for _, e := range events {
+		event := e
+		isActive := d.engine.GetCurrentEventID() == event.ID
 
 		loadBtn := widget.NewButton("Select", func() {
-			wMins := blueprint.WarningValue
-			if blueprint.WarningIsPercent {
-				wMins = (blueprint.WarningValue * blueprint.Total) / 100
+			wMins := event.WarningValue
+			if event.WarningIsPercent {
+				wMins = (event.WarningValue * event.Total) / 100
 			}
-			d.engine.UpdatePhases(blueprint.Phases, wMins)
-			d.engine.SetCurrentBlueprintID(blueprint.ID)
+			d.engine.UpdatePhases(event.Phases, wMins)
+			d.engine.SetCurrentEventID(event.ID)
 			d.ShowLibrary() // Refresh to show selection
 		})
 		loadBtn.Importance = widget.HighImportance
 
 		editBtn := widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), func() {
-			d.ShowEditor(&blueprint)
+			d.ShowEditor(&event)
 		})
 		deleteBtn := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() {
-			d.deleteBlueprint(blueprint.ID)
+			d.deleteEvent(event.ID)
 		})
 
-		info := fmt.Sprintf("%s (%d mins)", blueprint.Name, blueprint.Total)
+		info := fmt.Sprintf("%s (%d mins)", event.Name, event.Total)
 		label := widget.NewLabel(info)
 		if isActive {
 			label.Importance = widget.SuccessImportance
@@ -110,7 +114,7 @@ func (d *Dashboard) ShowLibrary() {
 		}
 	}
 
-	addBtn := widget.NewButtonWithIcon("Create New Blueprint", theme.ContentAddIcon(), func() {
+	addBtn := widget.NewButtonWithIcon("Create New Event", theme.ContentAddIcon(), func() {
 		d.ShowEditor(nil)
 	})
 
@@ -130,7 +134,7 @@ func (d *Dashboard) ShowLibrary() {
 				warn, _ := strconv.Atoi(warnEntry.Text)
 				if mins > 0 {
 					d.engine.UpdatePhases([]domain.Phase{{Name: "Timer", Duration: mins * 60}}, warn)
-					d.engine.SetCurrentBlueprintID("quick-timer")
+					d.engine.SetCurrentEventID("quick-timer")
 					d.ShowLibrary()
 				}
 			}
@@ -139,7 +143,7 @@ func (d *Dashboard) ShowLibrary() {
 
 	content := container.NewBorder(
 		container.NewVBox(
-			widget.NewLabelWithStyle("Blueprint Library", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+			widget.NewLabelWithStyle("Event Library", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 			widget.NewSeparator(),
 		),
 		container.NewVBox(simpleBtn, addBtn),
@@ -151,8 +155,9 @@ func (d *Dashboard) ShowLibrary() {
 	d.mainContent.Refresh()
 }
 
-func (d *Dashboard) ShowEditor(existing *domain.Blueprint) {
-	title := "Blueprint Designer"
+// ShowEditor provides a form to create or edit an Event template.
+func (d *Dashboard) ShowEditor(existing *domain.Event) {
+	title := "Event Designer"
 	if existing != nil {
 		title = "Edit: " + existing.Name
 	}
@@ -171,7 +176,7 @@ func (d *Dashboard) ShowEditor(existing *domain.Blueprint) {
 	if existing != nil {
 		nameEntry.SetText(existing.Name)
 	} else {
-		nameEntry.SetText("New Blueprint")
+		nameEntry.SetText("New Event")
 	}
 
 	totalEntry := widget.NewEntry()
@@ -272,7 +277,7 @@ func (d *Dashboard) ShowEditor(existing *domain.Blueprint) {
 
 	totalEntry.OnChanged = func(string) { updateSummary() }
 
-	saveBtn := widget.NewButtonWithIcon("Save Blueprint", theme.ConfirmIcon(), func() {
+	saveBtn := widget.NewButtonWithIcon("Save Event", theme.ConfirmIcon(), func() {
 		newPhases := []domain.Phase{}
 		targetMins, _ := strconv.Atoi(totalEntry.Text)
 		
@@ -306,7 +311,7 @@ func (d *Dashboard) ShowEditor(existing *domain.Blueprint) {
 			isPercent := strings.HasSuffix(txt, "%")
 			val, _ := strconv.Atoi(strings.TrimSuffix(txt, "%"))
 			
-			d.saveBlueprint(&domain.Blueprint{
+			d.saveEvent(&domain.Event{
 				ID:               func() string { if existing != nil { return existing.ID }; return uuid.New().String() }(),
 				Name:             nameEntry.Text,
 				Total:            targetMins,
@@ -329,7 +334,7 @@ func (d *Dashboard) ShowEditor(existing *domain.Blueprint) {
 	})
 
 	header := container.NewGridWithColumns(3,
-		container.NewVBox(widget.NewLabel("Blueprint Name"), nameEntry),
+		container.NewVBox(widget.NewLabel("Event Name"), nameEntry),
 		container.NewVBox(widget.NewLabel("Total Duration (mins)"), totalEntry),
 		container.NewVBox(widget.NewLabel("Alert Threshold (mins or %)"), warningEntry),
 	)
@@ -351,28 +356,28 @@ func (d *Dashboard) ShowEditor(existing *domain.Blueprint) {
 	updateSummary()
 }
 
-func (d *Dashboard) saveBlueprint(saved *domain.Blueprint) {
-	blueprints, _ := d.store.LoadAll()
+func (d *Dashboard) saveEvent(saved *domain.Event) {
+	events, _ := d.store.LoadAll()
 	found := false
-	for i, bp := range blueprints {
-		if bp.ID == saved.ID {
-			blueprints[i] = *saved
+	for i, ev := range events {
+		if ev.ID == saved.ID {
+			events[i] = *saved
 			found = true
 			break
 		}
 	}
 	if !found {
-		blueprints = append(blueprints, *saved)
+		events = append(events, *saved)
 	}
-	d.store.SaveAll(blueprints)
+	d.store.SaveAll(events)
 }
 
-func (d *Dashboard) deleteBlueprint(id string) {
-	blueprints, _ := d.store.LoadAll()
-	var updated []domain.Blueprint
-	for _, b := range blueprints {
-		if b.ID != id {
-			updated = append(updated, b)
+func (d *Dashboard) deleteEvent(id string) {
+	events, _ := d.store.LoadAll()
+	var updated []domain.Event
+	for _, e := range events {
+		if e.ID != id {
+			updated = append(updated, e)
 		}
 	}
 	d.store.SaveAll(updated)

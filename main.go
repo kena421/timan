@@ -1,21 +1,20 @@
 package main
 
 import (
-	"timan/internal/domain"
-	"timan/internal/engine"
-	"timan/internal/ui"
+	"github.com/timan-org/timan/internal/domain"
+	"github.com/timan-org/timan/internal/engine"
+	"github.com/timan-org/timan/internal/ui"
 
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/theme"
 )
 
 func main() {
-	// 1. Domain / Initial State
+	// 1. Initial State: Default Event Phases
 	initialPhases := []domain.Phase{
 		{Name: "Intro", Duration: 5 * 60},
-		{Name: "Understand", Duration: 10 * 60},
-		{Name: "Design", Duration: 20 * 60},
-		{Name: "Discussion", Duration: 25 * 60},
+		{Name: "Main Content", Duration: 45 * 60},
+		{Name: "Wrap-up", Duration: 10 * 60},
 	}
 
 	// 2. Initialize Engine
@@ -23,9 +22,12 @@ func main() {
 	timerEngine.Start()
 
 	// 3. Initialize App & UI
-	a := app.NewWithID("com.interview.timer.v3")
+	// Using a generic app ID
+	a := app.NewWithID("com.timan.timer")
 	a.SetIcon(theme.SettingsIcon())
-	w := a.NewWindow("InterviewTimer")
+	
+	// Main Window
+	w := a.NewWindow("Timan")
 	w.SetFixedSize(true)
 
 	// Dependency Injection: UI depends on the engine

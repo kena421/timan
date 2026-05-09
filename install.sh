@@ -3,11 +3,11 @@
 # Exit on error
 set -e
 
-APP_NAME="Timer"
-BINARY_NAME="timer"
+APP_NAME="Timan"
+BINARY_NAME="timan"
 GOPATH_BIN=$(go env GOPATH)/bin
 
-echo "🚀 Starting installation for $APP_NAME..."
+echo "🚀 Starting installation for $APP_NAME (Time Manager)..."
 
 # 1. Check for Fyne tool
 if [ ! -f "$GOPATH_BIN/fyne" ]; then
@@ -31,8 +31,8 @@ fi
 
 # 4. Package as .app bundle
 echo "📦 Packaging as .app bundle..."
-rm -rf "$APP_NAME.app" "InterviewTimer.app"
-$GOPATH_BIN/fyne package -os darwin $ICON_FLAG -name $APP_NAME -id com.interview.timer
+rm -rf "$APP_NAME.app" "Timer.app" "InterviewTimer.app"
+$GOPATH_BIN/fyne package -os darwin $ICON_FLAG -name $APP_NAME -id com.timan.timer
 
 # 5. Build the CLI binary (after packaging to avoid deletion)
 echo "🛠 Building optimized CLI binary..."

@@ -1,35 +1,55 @@
-# Interview Timer (Go + Fyne)
+# Timan: The Ultimate Time Manager 🚀
 
-A minimalist, "Always-on-Top", frameless interview timer for macOS.
+**Timan** (Time Manager) is a minimalist, "Always-on-Top", frameless event timer designed to help you navigate through complex, multi-phase activities with precision.
 
-## New Features (v2)
-- **Click to Start/Pause**: The timer starts in a paused state (grey). Click the window to start/pause.
-- **Phase-Based Timing**: Automatically transitions through customizable interview phases.
-- **Progress Tracking**: Mini progress bar shows progress within the current phase.
-- **Dynamic Color**: Changes from Grey (Paused) to Green (Active) to Orange (Last minute).
-- **Custom Configuration**: Right-click to define your own phases (e.g., `Intro:5,Coding:30,Review:5`).
+Whether you're conducting technical interviews, delivering a keynote presentation, managing a workshop, or following a strict study routine, Timan keeps you on track without cluttering your workspace.
 
-## Setup & Quick Installation
-Ensure you have [Go](https://go.dev/dl/) installed. Then run the automated install script:
+![Timan Demo Placeholder](https://via.placeholder.com/600x400?text=Timan+HUD+Timer+Interface)
+
+## ✨ Features
+
+- **Phase-Based Timing**: Automatically transition through customizable event phases (e.g., Intro, Design, Q&A).
+- **HUD-Style Interface**: A sleek, borderless, and semi-transparent window that stays above all others.
+- **Event Library**: Save your structured "Events" as templates for repeatable workflows.
+- **Dynamic Feedback**: Visual cues change color as you approach the end of a session or phase.
+- **Smart Alerts**: Set custom warning thresholds (in minutes or percentages) to get notified when time is running low.
+- **Optimized for macOS**: Leverages native macOS APIs for a premium, integrated feel.
+
+## 🚀 Installation
+
+Ensure you have [Go](https://go.dev/dl/) installed. Then run the automated installation script:
 
 ```bash
 chmod +x install.sh
 ./install.sh
 ```
 
-This script will:
+The script will:
 1. Build the optimized binary.
-2. Package it as a native macOS `.app` bundle with a custom icon.
+2. Package it as a native macOS `.app` bundle (**Timan.app**).
 3. Install it to your `/Applications` folder.
-4. Install the CLI tool to `/usr/local/bin/timer`.
+4. Install the CLI tool to `/usr/local/bin/timan`.
 
-## Usage
-- **Launch**: Open **Timer** from your Applications folder or run `timer` in terminal.
-- **Move**: Click and drag the timer anywhere on the screen.
-- **Switch Mode**: Right-click and select **Toggle Mode (Up/Down)**.
-- **Reset**: Right-click and select **Reset**.
-- **Quit**: Right-click and select **Quit**.
+## 🛠 Usage
+
+- **Launch**: Open **Timan** from your Applications folder or run `timan` in your terminal.
+- **Start/Pause**: Simply click the timer window to toggle the active state.
+- **Manage Events**: Right-click (or click the settings icon) to open the **Event Library**.
+- **Configure**: Use the **Event Designer** to create complex sequences with specific durations or percentage-based splits.
+- **Reset**: Quickly restart the current session or a specific phase from the interface.
+
+## 📂 Configuration
+
+Timan stores your event templates in `~/.config/timan/events.json`. You can share this file with others to sync your event structures.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-*Note: This application uses native macOS APIs (Cocoa) via CGO and is specifically optimized for macOS.*
+*Note: This application is specifically optimized for macOS and uses CGO to interact with native Cocoa APIs.*

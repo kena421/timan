@@ -2,9 +2,10 @@ package engine
 
 import (
 	"time"
-	"timan/internal/domain"
+	"github.com/timan-org/timan/internal/domain"
 )
 
+// TimerState holds the current snapshot of the timer's progress and status.
 type TimerState struct {
 	CurrentPhaseIndex     int
 	RemainingSeconds      int
@@ -17,26 +18,31 @@ type TimerState struct {
 	UpcomingPhaseName     string
 }
 
+// TimerObserver defines the interface for components that wish to be notified of timer ticks.
 type TimerObserver interface {
 	OnTick(state TimerState)
 }
 
+// TimerEngine manages the core logic of the timer, including phase transitions and state updates.
 type TimerEngine struct {
-	phases             []domain.Phase
-	state              TimerState
-	observers          []TimerObserver
-	stopChan           chan bool
-	currentBlueprintID string
+	phases         []domain.Phase
+	state          TimerState
+	observers      []TimerObserver
+	stopChan       chan bool
+	currentEventID string
 }
 
-func (e *TimerEngine) GetCurrentBlueprintID() string {
-	return e.currentBlueprintID
+// GetCurrentEventID returns the ID of the Event currently loaded in the engine.
+func (e *TimerEngine) GetCurrentEventID() string {
+	return e.currentEventID
 }
 
-func (e *TimerEngine) SetCurrentBlueprintID(id string) {
-	e.currentBlueprintID = id
+// SetCurrentEventID sets the ID of the current Event.
+func (e *TimerEngine) SetCurrentEventID(id string) {
+	e.currentEventID = id
 }
 
+// NewTimerEngine initializes a new TimerEngine with a set of phases.
 func NewTimerEngine(phases []domain.Phase) *TimerEngine {
 	totalSec := 0
 	for _, p := range phases {
@@ -57,10 +63,12 @@ func NewTimerEngine(phases []domain.Phase) *TimerEngine {
 	}
 }
 
+// AddObserver registers a new observer to receive timer updates.
 func (e *TimerEngine) AddObserver(o TimerObserver) {
 	e.observers = append(e.observers, o)
 }
 
+// Start begins the timer loop in a separate goroutine.
 func (e *TimerEngine) Start() {
 	ticker := time.NewTicker(time.Second)
 	go func() {
@@ -93,11 +101,13 @@ func (e *TimerEngine) tick() {
 	e.notify()
 }
 
+// Toggle flips the running state of the timer (Start/Pause).
 func (e *TimerEngine) Toggle() {
 	e.state.IsRunning = !e.state.IsRunning
 	e.notify()
 }
 
+// Reset returns the timer to its initial state (first phase, paused).
 func (e *TimerEngine) Reset() {
 	totalSec := 0
 	for _, p := range e.phases {
@@ -112,14 +122,15 @@ func (e *TimerEngine) Reset() {
 	e.notify()
 }
 
+// ResetPhase restarts the current phase from the beginning.
 func (e *TimerEngine) ResetPhase() {
-	// Need to adjust TotalRemainingSeconds when resetting a phase
 	oldRemaining := e.state.RemainingSeconds
 	e.state.RemainingSeconds = e.phases[e.state.CurrentPhaseIndex].Duration
 	e.state.TotalRemainingSeconds += (e.state.RemainingSeconds - oldRemaining)
 	e.notify()
 }
 
+// UpdatePhases reconfigures the engine with a new set of phases and alert threshold.
 func (e *TimerEngine) UpdatePhases(phases []domain.Phase, warningMins int) {
 	e.phases = phases
 	totalSec := 0
@@ -133,10 +144,12 @@ func (e *TimerEngine) UpdatePhases(phases []domain.Phase, warningMins int) {
 	e.Reset()
 }
 
+// GetPhases returns the current set of phases.
 func (e *TimerEngine) GetPhases() []domain.Phase {
 	return e.phases
 }
 
+// GetState returns the current state of the timer.
 func (e *TimerEngine) GetState() TimerState {
 	state := e.state
 	if state.CurrentPhaseIndex < len(e.phases)-1 {

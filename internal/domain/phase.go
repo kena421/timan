@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// Phase represents a specific segment of an Event with a name and duration.
 type Phase struct {
 	Name      string
 	Duration  int  // seconds (absolute)
@@ -13,6 +14,8 @@ type Phase struct {
 	Percent   int  // percentage value (if IsPercent is true)
 }
 
+// GetSeconds calculates the absolute duration in seconds for this phase,
+// potentially based on the total duration of the Event if specified as a percentage.
 func (p Phase) GetSeconds(totalMins int) int {
 	if p.IsPercent {
 		return (p.Percent * totalMins * 60) / 100
@@ -20,11 +23,13 @@ func (p Phase) GetSeconds(totalMins int) int {
 	return p.Duration
 }
 
+// FormatDuration returns a string representation of the phase duration (MM:SS).
 func (p Phase) FormatDuration(totalMins int) string {
 	s := p.GetSeconds(totalMins)
 	return fmt.Sprintf("%02d:%02d", s/60, s%60)
 }
 
+// ParsePhases parses a comma-separated string of "Name:Mins" into a slice of Phases.
 func ParsePhases(input string) ([]Phase, error) {
 	var phases []Phase
 	parts := strings.Split(input, ",")
@@ -44,6 +49,7 @@ func ParsePhases(input string) ([]Phase, error) {
 	return phases, nil
 }
 
+// ValidatePhases ensures that the sum of all phase durations matches the total Event duration.
 func ValidatePhases(phases []Phase, totalMinutes int) error {
 	sumSeconds := 0
 	for _, p := range phases {

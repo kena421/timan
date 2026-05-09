@@ -5,8 +5,8 @@ import (
 	"image/color"
 	"strings"
 
-	"timan/internal/engine"
-	"timan/internal/platform"
+	"github.com/timan-org/timan/internal/engine"
+	"github.com/timan-org/timan/internal/platform"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -15,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+// TimerUI handles the main floating window of the application.
 type TimerUI struct {
 	window             fyne.Window
 	timerLabel         *canvas.Text
@@ -28,22 +29,26 @@ type TimerUI struct {
 	dashboard *Dashboard
 }
 
+// TappableIcon is a widget that wraps an icon and provides a tap handler.
 type TappableIcon struct {
 	widget.Icon
 	OnTap   func()
 	minSize fyne.Size
 }
 
+// Tapped implements the fyne.Tappable interface.
 func (t *TappableIcon) Tapped(_ *fyne.PointEvent) {
 	if t.OnTap != nil {
 		t.OnTap()
 	}
 }
 
+// MinSize overrides the default minimum size of the icon.
 func (t *TappableIcon) MinSize() fyne.Size {
 	return t.minSize
 }
 
+// NewTappableIcon creates a new TappableIcon instance.
 func NewTappableIcon(res fyne.Resource, size fyne.Size, onTap func()) *TappableIcon {
 	t := &TappableIcon{OnTap: onTap, minSize: size}
 	t.SetResource(res)
@@ -51,6 +56,7 @@ func NewTappableIcon(res fyne.Resource, size fyne.Size, onTap func()) *TappableI
 	return t
 }
 
+// NewTimerUI initializes the TimerUI and connects it to the TimerEngine.
 func NewTimerUI(w fyne.Window, e *engine.TimerEngine) *TimerUI {
 	ui := &TimerUI{
 		window: w,
@@ -111,6 +117,7 @@ func (ui *TimerUI) formatTime(s int) string {
 	return fmt.Sprintf("%02d:%02d", s/60, s%60)
 }
 
+// OnTick updates the UI with the latest timer state.
 func (ui *TimerUI) OnTick(state engine.TimerState) {
 	// Main Focus: ONLY Remaining Session Time
 	ui.timerLabel.Text = ui.formatTime(state.TotalRemainingSeconds)
@@ -155,7 +162,8 @@ func (ui *TimerUI) OnTick(state engine.TimerState) {
 	ui.playIcon.Refresh()
 }
 
+// Show displays the main timer window and applies platform tweaks.
 func (ui *TimerUI) Show() {
 	ui.window.Show()
-	platform.TweakWindow("InterviewTimer")
+	platform.TweakWindow("Timan") // Updated window title for tweaking
 }
