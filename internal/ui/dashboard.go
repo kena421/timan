@@ -45,11 +45,32 @@ func (d *Dashboard) Show() {
 func (d *Dashboard) ShowLibrary() {
 	blueprints, _ := d.store.LoadAll()
 
+	if len(blueprints) == 0 {
+		d.mainContent.Objects = []fyne.CanvasObject{container.NewCenter(
+			container.NewVBox(
+				widget.NewLabel("Your library is empty."),
+				widget.NewButton("Create Your First Blueprint", func() { d.ShowEditor(nil) }),
+			),
+		)}
+		d.mainContent.Refresh()
+		return
+	}
+
+	// Auto-select first if none active
+	if d.engine.GetCurrentBlueprintID() == "" {
+		d.engine.UpdatePhases(blueprints[0].Phases)
+		d.engine.SetCurrentBlueprintID(blueprints[0].ID)
+	}
+
 	list := container.NewVBox()
 	for _, b := range blueprints {
 		blueprint := b
+		isActive := d.engine.GetCurrentBlueprintID() == blueprint.ID
+
 		loadBtn := widget.NewButtonWithIcon("", theme.ViewRefreshIcon(), func() {
 			d.engine.UpdatePhases(blueprint.Phases)
+			d.engine.SetCurrentBlueprintID(blueprint.ID)
+			d.ShowLibrary() // Refresh to show selection
 		})
 		editBtn := widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), func() {
 			d.ShowEditor(&blueprint)
@@ -59,8 +80,15 @@ func (d *Dashboard) ShowLibrary() {
 		})
 
 		info := fmt.Sprintf("%s (%d mins)", blueprint.Name, blueprint.Total)
-		row := container.NewBorder(nil, nil, nil, container.NewHBox(loadBtn, editBtn, deleteBtn), widget.NewLabel(info))
-		list.Add(row)
+		label := widget.NewLabel(info)
+		if isActive {
+			label.Importance = widget.SuccessImportance
+			row := container.NewBorder(nil, nil, widget.NewIcon(theme.ConfirmIcon()), container.NewHBox(loadBtn, editBtn, deleteBtn), label)
+			list.Add(row)
+		} else {
+			row := container.NewBorder(nil, nil, nil, container.NewHBox(loadBtn, editBtn, deleteBtn), label)
+			list.Add(row)
+		}
 	}
 
 	addBtn := widget.NewButtonWithIcon("Create New Blueprint", theme.ContentAddIcon(), func() {
@@ -77,6 +105,8 @@ func (d *Dashboard) ShowLibrary() {
 				mins, _ := strconv.Atoi(entry.Text)
 				if mins > 0 {
 					d.engine.UpdatePhases([]domain.Phase{{Name: "Timer", Duration: mins * 60}})
+					d.engine.SetCurrentBlueprintID("quick-timer")
+					d.ShowLibrary()
 				}
 			}
 		}, d.window)
