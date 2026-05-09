@@ -87,7 +87,7 @@ func (ui *TimerUI) setup() {
 	ui.background = canvas.NewRectangle(color.NRGBA{R: 30, G: 30, B: 30, A: 200})
 
 	// Micro Icons
-	size := fyne.NewSize(12, 12)
+	size := fyne.NewSize(16, 16)
 	ui.playIcon = NewTappableIcon(theme.MediaPlayIcon(), size, ui.engine.Toggle)
 	reset := NewTappableIcon(theme.ViewRefreshIcon(), size, ui.engine.Reset)
 	dash := NewTappableIcon(theme.SettingsIcon(), size, ui.dashboard.Show)
