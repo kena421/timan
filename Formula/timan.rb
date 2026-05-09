@@ -1,9 +1,9 @@
 class Timan < Formula
   desc "Minimalist HUD Time Manager for macOS"
   homepage "https://github.com/kena421/timan"
-  url "https://github.com/kena421/timan/archive/refs/tags/v1.0.1.tar.gz"
-  version "1.0.1"
-  sha256 "bae69979f7dc3859fed1a0bd1280ef9af6fa1f8b5db5efc10637097956923d2d"
+  url "https://github.com/kena421/timan/archive/refs/tags/v1.0.2.tar.gz"
+  version "1.0.2"
+  sha256 "1cd76959c2965348bf50f100e904eb19ad760a465e244e3182eee06b4be71ebc"
   license "MIT"
 
   depends_on "go" => :build
