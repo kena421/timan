@@ -104,8 +104,8 @@ func (ui *TimerUI) setup() {
 	// 4. Backgrounds
 	ui.background = canvas.NewRectangle(colorBgDeep)
 	ui.border = canvas.NewRectangle(color.Transparent)
-	ui.border.StrokeColor = colorBorderLight
-	ui.border.StrokeWidth = 1.0
+	ui.border.StrokeColor = color.Transparent // Removed border color
+	ui.border.StrokeWidth = 0                 // Set to 0
 
 	// 5. Accessible Controls (Larger)
 	iconSize := fyne.NewSize(14, 14) // Increased from 11
@@ -175,17 +175,17 @@ func (ui *TimerUI) OnTick(state engine.TimerState) {
 	}
 
 	if state.TotalRemainingSeconds <= state.WarningSeconds && state.IsRunning {
+		// Alert Mode: Neon Red Flash
 		ui.timerLabel.Color = colorNeonRed
 		ui.background.FillColor = color.NRGBA{R: 45, G: 10, B: 10, A: 245}
-		ui.border.StrokeColor = colorNeonRed
 	} else if !state.IsRunning {
+		// Paused Mode: Ghostly Green (Visible but dim)
 		ui.timerLabel.Color = colorGhostGreen
 		ui.background.FillColor = colorBgDeep
-		ui.border.StrokeColor = colorBorderLight
 	} else {
+		// Active Mode: Vibrant Bright Green
 		ui.timerLabel.Color = colorBrightGreen
 		ui.background.FillColor = colorBgDeep
-		ui.border.StrokeColor = colorBorderLight
 	}
 
 	ui.timerLabel.Refresh()
