@@ -13,6 +13,7 @@ type TimerState struct {
 	TotalMinutes          int
 	TotalRemainingSeconds int
 	TotalDurationSeconds  int
+	WarningSeconds        int
 }
 
 type TimerObserver interface {
@@ -118,7 +119,7 @@ func (e *TimerEngine) ResetPhase() {
 	e.notify()
 }
 
-func (e *TimerEngine) UpdatePhases(phases []domain.Phase) {
+func (e *TimerEngine) UpdatePhases(phases []domain.Phase, warningMins int) {
 	e.phases = phases
 	totalSec := 0
 	for _, p := range phases {
@@ -127,6 +128,7 @@ func (e *TimerEngine) UpdatePhases(phases []domain.Phase) {
 	e.state.TotalMinutes = totalSec / 60
 	e.state.TotalDurationSeconds = totalSec
 	e.state.TotalRemainingSeconds = totalSec
+	e.state.WarningSeconds = warningMins * 60
 	e.Reset()
 }
 

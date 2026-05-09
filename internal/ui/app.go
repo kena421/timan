@@ -100,11 +100,14 @@ func (ui *TimerUI) formatTime(s int) string {
 func (ui *TimerUI) OnTick(state engine.TimerState) {
 	ui.phaseLabel.Text = strings.ToUpper(state.CurrentPhase.Name)
 	
-	// Main Focus: Total Session Time (Remaining / Total)
-	ui.timerLabel.Text = fmt.Sprintf("%s / %s", ui.formatTime(state.TotalRemainingSeconds), ui.formatTime(state.TotalDurationSeconds))
+	// Main Focus: ONLY Remaining Session Time
+	ui.timerLabel.Text = ui.formatTime(state.TotalRemainingSeconds)
 	
-	// Secondary: Current Phase Time (Remaining / Total)
-	ui.totalLabel.Text = fmt.Sprintf("PHASE: %s / %s", ui.formatTime(state.RemainingSeconds), ui.formatTime(state.CurrentPhase.Duration))
+	// Secondary: Phase Detail & Session Goal
+	ui.totalLabel.Text = fmt.Sprintf("PHASE: %s/%s | GOAL: %s", 
+		ui.formatTime(state.RemainingSeconds), 
+		ui.formatTime(state.CurrentPhase.Duration),
+		ui.formatTime(state.TotalDurationSeconds))
 	
 	// Update Play/Pause Icon
 	if state.IsRunning {
@@ -119,19 +122,23 @@ func (ui *TimerUI) OnTick(state engine.TimerState) {
 		ratio = float64(state.TotalDurationSeconds-state.TotalRemainingSeconds) / float64(state.TotalDurationSeconds)
 	}
 	
-	// Total width of the container is approx 220
 	fullWidth := ui.window.Content().Size().Width - 20
 	ui.progress.SetMinSize(fyne.NewSize(float32(float64(fullWidth)*ratio), 2))
 	
-	if state.TotalRemainingSeconds < 300 && state.IsRunning { // Red in last 5 mins
+	// Background Alert & Timer Color
+	if state.TotalRemainingSeconds <= state.WarningSeconds && state.IsRunning {
 		ui.timerLabel.Color = color.NRGBA{R: 255, G: 100, B: 0, A: 255}
-		ui.progress.FillColor = color.NRGBA{R: 255, G: 100, B: 0, A: 255}
+		ui.progress.FillColor = color.NRGBA{R: 255, G: 50, B: 50, A: 255}
+		// Flash/Change background to alert
+		ui.background.FillColor = color.NRGBA{R: 100, G: 0, B: 0, A: 180}
 	} else if !state.IsRunning {
 		ui.timerLabel.Color = color.NRGBA{R: 200, G: 200, B: 200, A: 255}
 		ui.progress.FillColor = color.NRGBA{R: 150, G: 150, B: 150, A: 255}
+		ui.background.FillColor = color.NRGBA{R: 30, G: 30, B: 30, A: 200}
 	} else {
 		ui.timerLabel.Color = color.NRGBA{R: 50, G: 255, B: 50, A: 255}
 		ui.progress.FillColor = color.NRGBA{R: 50, G: 255, B: 50, A: 255}
+		ui.background.FillColor = color.NRGBA{R: 30, G: 30, B: 30, A: 200}
 	}
 
 	ui.phaseLabel.Refresh()
@@ -139,6 +146,7 @@ func (ui *TimerUI) OnTick(state engine.TimerState) {
 	ui.totalLabel.Refresh()
 	ui.progress.Refresh()
 	ui.progressBackground.Refresh()
+	ui.background.Refresh()
 	ui.playBtn.Refresh()
 }
 

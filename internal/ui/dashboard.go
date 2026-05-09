@@ -58,7 +58,7 @@ func (d *Dashboard) ShowLibrary() {
 
 	// Auto-select first if none active
 	if d.engine.GetCurrentBlueprintID() == "" {
-		d.engine.UpdatePhases(blueprints[0].Phases)
+		d.engine.UpdatePhases(blueprints[0].Phases, blueprints[0].WarningMinutes)
 		d.engine.SetCurrentBlueprintID(blueprints[0].ID)
 	}
 
@@ -68,7 +68,7 @@ func (d *Dashboard) ShowLibrary() {
 		isActive := d.engine.GetCurrentBlueprintID() == blueprint.ID
 
 		loadBtn := widget.NewButton("Select", func() {
-			d.engine.UpdatePhases(blueprint.Phases)
+			d.engine.UpdatePhases(blueprint.Phases, blueprint.WarningMinutes)
 			d.engine.SetCurrentBlueprintID(blueprint.ID)
 			d.ShowLibrary() // Refresh to show selection
 		})
@@ -106,7 +106,7 @@ func (d *Dashboard) ShowLibrary() {
 			if ok {
 				mins, _ := strconv.Atoi(entry.Text)
 				if mins > 0 {
-					d.engine.UpdatePhases([]domain.Phase{{Name: "Timer", Duration: mins * 60}})
+					d.engine.UpdatePhases([]domain.Phase{{Name: "Timer", Duration: mins * 60}}, 5)
 					d.engine.SetCurrentBlueprintID("quick-timer")
 					d.ShowLibrary()
 				}
@@ -154,6 +154,14 @@ func (d *Dashboard) ShowEditor(existing *domain.Blueprint) {
 	totalEntry := widget.NewEntry()
 	totalEntry.SetText(strconv.Itoa(totalMins))
 	totalEntry.PlaceHolder = "Total Duration (mins)"
+
+	warningEntry := widget.NewEntry()
+	if existing != nil {
+		warningEntry.SetText(strconv.Itoa(existing.WarningMinutes))
+	} else {
+		warningEntry.SetText("5")
+	}
+	warningEntry.PlaceHolder = "Alert at (mins) remaining"
 
 	rows := container.NewVBox()
 	summaryLabel := widget.NewLabel("")
@@ -223,6 +231,7 @@ func (d *Dashboard) ShowEditor(existing *domain.Blueprint) {
 	saveBtn := widget.NewButtonWithIcon("Save Blueprint", theme.ConfirmIcon(), func() {
 		newPhases := []domain.Phase{}
 		targetMins, _ := strconv.Atoi(totalEntry.Text)
+		warningMins, _ := strconv.Atoi(warningEntry.Text)
 		
 		for _, row := range rows.Objects {
 			if box, ok := row.(*fyne.Container); ok {
@@ -251,10 +260,11 @@ func (d *Dashboard) ShowEditor(existing *domain.Blueprint) {
 
 		if err := domain.ValidatePhases(newPhases, targetMins); err == nil {
 			d.saveBlueprint(&domain.Blueprint{
-				ID:     func() string { if existing != nil { return existing.ID }; return uuid.New().String() }(),
-				Name:   nameEntry.Text,
-				Total:  targetMins,
-				Phases: newPhases,
+				ID:             func() string { if existing != nil { return existing.ID }; return uuid.New().String() }(),
+				Name:           nameEntry.Text,
+				Total:          targetMins,
+				WarningMinutes: warningMins,
+				Phases:         newPhases,
 			})
 			d.ShowLibrary()
 		} else {
@@ -273,7 +283,7 @@ func (d *Dashboard) ShowEditor(existing *domain.Blueprint) {
 	content := container.NewBorder(
 		container.NewVBox(
 			widget.NewLabelWithStyle(title, fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-			container.NewGridWithColumns(2, nameEntry, totalEntry),
+			container.NewGridWithColumns(3, nameEntry, totalEntry, warningEntry),
 		),
 		container.NewVBox(summaryLabel, container.NewGridWithColumns(3, addBtn, cancelBtn, saveBtn)),
 		nil, nil,
