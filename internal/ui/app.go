@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -21,6 +22,10 @@ type TimerUI struct {
 	totalLabel *canvas.Text
 	progress   *widget.ProgressBar
 	background *canvas.Rectangle
+
+	playBtn      *widget.Button
+	resetBtn     *widget.Button
+	dashboardBtn *widget.Button
 
 	engine    *engine.TimerEngine
 	dashboard *Dashboard
@@ -56,32 +61,32 @@ func (ui *TimerUI) setup() {
 
 	ui.background = canvas.NewRectangle(color.NRGBA{R: 30, G: 30, B: 30, A: 200})
 
-	menu := fyne.NewMenu("",
-		fyne.NewMenuItem("Open Dashboard", ui.dashboard.Show),
-		fyne.NewMenuItemSeparator(),
-		fyne.NewMenuItem("Reset current phase", ui.engine.ResetPhase),
-		fyne.NewMenuItem("Reset All", ui.engine.Reset),
-		fyne.NewMenuItemSeparator(),
-		fyne.NewMenuItem("Quit", func() { fyne.CurrentApp().Quit() }),
-	)
+	// Small Control Buttons
+	ui.playBtn = widget.NewButtonWithIcon("", theme.MediaPlayIcon(), ui.engine.Toggle)
+	ui.playBtn.Importance = widget.LowImportance
+
+	ui.resetBtn = widget.NewButtonWithIcon("", theme.ViewRefreshIcon(), ui.engine.Reset)
+	ui.resetBtn.Importance = widget.LowImportance
+
+	ui.dashboardBtn = widget.NewButtonWithIcon("", theme.SettingsIcon(), ui.dashboard.Show)
+	ui.dashboardBtn.Importance = widget.LowImportance
+
+	controls := container.NewHBox(ui.playBtn, ui.resetBtn, ui.dashboardBtn)
+
+	topBar := container.NewBorder(nil, nil, nil, controls, container.NewCenter(ui.phaseLabel))
 
 	content := container.NewStack(
 		ui.background,
 		container.NewVBox(
-			ui.phaseLabel,
+			topBar,
 			container.NewCenter(ui.timerLabel),
 			ui.totalLabel,
 			ui.progress,
 		),
-		&InteractionWrapper{
-			OnTap:  ui.engine.Toggle,
-			Menu:   menu,
-			Window: ui.window,
-		},
 	)
 
 	ui.window.SetContent(content)
-	ui.window.Resize(fyne.NewSize(220, 110))
+	ui.window.Resize(fyne.NewSize(240, 120))
 }
 
 func (ui *TimerUI) formatTime(s int) string {
@@ -97,6 +102,13 @@ func (ui *TimerUI) OnTick(state engine.TimerState) {
 	// Secondary: Current Phase Time (Remaining / Total)
 	ui.totalLabel.Text = fmt.Sprintf("PHASE: %s / %s", ui.formatTime(state.RemainingSeconds), ui.formatTime(state.CurrentPhase.Duration))
 	
+	// Update Play/Pause Icon
+	if state.IsRunning {
+		ui.playBtn.SetIcon(theme.MediaPauseIcon())
+	} else {
+		ui.playBtn.SetIcon(theme.MediaPlayIcon())
+	}
+
 	// Progress bar reflects Total Session Progress
 	ui.progress.Max = float64(state.TotalDurationSeconds)
 	ui.progress.Value = float64(state.TotalDurationSeconds - state.TotalRemainingSeconds)
@@ -113,6 +125,7 @@ func (ui *TimerUI) OnTick(state engine.TimerState) {
 	ui.timerLabel.Refresh()
 	ui.totalLabel.Refresh()
 	ui.progress.Refresh()
+	ui.playBtn.Refresh()
 }
 
 func (ui *TimerUI) Show() {
