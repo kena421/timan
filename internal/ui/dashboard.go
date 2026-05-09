@@ -107,15 +107,21 @@ func (d *Dashboard) ShowLibrary() {
 	})
 
 	simpleBtn := widget.NewButtonWithIcon("Simple Quick Timer", theme.HistoryIcon(), func() {
-		entry := widget.NewEntry()
-		entry.SetText("60")
+		minsEntry := widget.NewEntry()
+		minsEntry.SetText("60")
+		
+		warnEntry := widget.NewEntry()
+		warnEntry.SetText("5")
+
 		dialog.ShowForm("Simple Timer", "Start", "Cancel", []*widget.FormItem{
-			{Text: "Minutes", Widget: entry},
+			{Text: "Total Minutes", Widget: minsEntry},
+			{Text: "Alert at (mins remaining)", Widget: warnEntry},
 		}, func(ok bool) {
 			if ok {
-				mins, _ := strconv.Atoi(entry.Text)
+				mins, _ := strconv.Atoi(minsEntry.Text)
+				warn, _ := strconv.Atoi(warnEntry.Text)
 				if mins > 0 {
-					d.engine.UpdatePhases([]domain.Phase{{Name: "Timer", Duration: mins * 60}}, 5)
+					d.engine.UpdatePhases([]domain.Phase{{Name: "Timer", Duration: mins * 60}}, warn)
 					d.engine.SetCurrentBlueprintID("quick-timer")
 					d.ShowLibrary()
 				}
