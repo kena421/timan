@@ -29,7 +29,33 @@
 
 ## 🚀 Installation
 
-Ensure you have [Go](https://go.dev/dl/) installed. Then run the automated installation script:
+The easiest way to install Timan is via Homebrew.
+
+### 1. Install as a macOS App (Recommended)
+This will install `Timan.app` directly into your `/Applications` folder so you can launch it from Spotlight or Launchpad.
+
+```bash
+brew tap kena421/tap
+brew install --cask timan --no-quarantine
+```
+*(Note: The `--no-quarantine` flag tells macOS Gatekeeper that you trust this open-source application, preventing the "App is damaged" error).*
+
+**Troubleshooting "App is Damaged" Error:**
+If you forgot the `--no-quarantine` flag and macOS tells you the app is damaged, simply run this command to fix it:
+```bash
+sudo xattr -cr /Applications/Timan.app
+```
+
+### 2. Install as a CLI Tool
+If you only want to launch the HUD from your terminal without adding it to your Applications folder:
+
+```bash
+brew tap kena421/tap
+brew install timan
+```
+
+### 3. Build from Source
+Ensure you have [Go](https://go.dev/dl/) installed. Then run:
 
 ```bash
 git clone https://github.com/kena421/timan.git
@@ -37,12 +63,6 @@ cd timan
 chmod +x install.sh
 ./install.sh
 ```
-
-The script handles everything:
-1. Builds the optimized binary.
-2. Packages it as a native macOS `.app` bundle (**Timan.app**).
-3. Installs it to your `/Applications` folder.
-4. Installs the CLI tool to `/usr/local/bin/timan`.
 
 ## 🛠 Usage
 
