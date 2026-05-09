@@ -3,7 +3,6 @@ package main
 import (
 	"timan/internal/domain"
 	"timan/internal/engine"
-	"timan/internal/platform"
 	"timan/internal/ui"
 
 	"fyne.io/fyne/v2/app"
@@ -30,11 +29,10 @@ func main() {
 	w.SetFixedSize(true)
 
 	// Dependency Injection: UI depends on the engine
-	ui.NewTimerUI(w, timerEngine)
+	timerUI := ui.NewTimerUI(w, timerEngine)
 
-	// 4. Show & Platform Tweaks
-	w.Show()
-	platform.TweakWindow("InterviewTimer")
+	// 4. Show (handles internal platform tweaks)
+	timerUI.Show()
 
 	// 5. Run
 	a.Run()

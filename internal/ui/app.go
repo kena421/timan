@@ -5,27 +5,25 @@ import (
 	"image/color"
 	"strings"
 
-	"timan/internal/domain"
 	"timan/internal/engine"
+	"timan/internal/platform"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"strconv"
 )
 
 type TimerUI struct {
 	window     fyne.Window
 	phaseLabel *canvas.Text
 	timerLabel *canvas.Text
+	totalLabel *canvas.Text
 	progress   *widget.ProgressBar
 	background *canvas.Rectangle
 
-	engine *engine.TimerEngine
-	manager *BlueprintManager
+	engine    *engine.TimerEngine
+	dashboard *Dashboard
 }
 
 func NewTimerUI(w fyne.Window, e *engine.TimerEngine) *TimerUI {
@@ -33,7 +31,7 @@ func NewTimerUI(w fyne.Window, e *engine.TimerEngine) *TimerUI {
 		window: w,
 		engine: e,
 	}
-	ui.manager = NewBlueprintManager(ui, e)
+	ui.dashboard = NewDashboard(ui, e)
 	ui.setup()
 	e.AddObserver(ui)
 	return ui
@@ -41,13 +39,17 @@ func NewTimerUI(w fyne.Window, e *engine.TimerEngine) *TimerUI {
 
 func (ui *TimerUI) setup() {
 	ui.phaseLabel = canvas.NewText("INITIALIZING", color.NRGBA{R: 200, G: 200, B: 200, A: 255})
-	ui.phaseLabel.TextSize = 12
+	ui.phaseLabel.TextSize = 10
 	ui.phaseLabel.Alignment = fyne.TextAlignCenter
 
 	ui.timerLabel = canvas.NewText("00:00", color.NRGBA{R: 200, G: 200, B: 200, A: 255})
 	ui.timerLabel.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	ui.timerLabel.TextSize = 36
+	ui.timerLabel.TextSize = 32
 	ui.timerLabel.Alignment = fyne.TextAlignCenter
+
+	ui.totalLabel = canvas.NewText("PHASE: 00:00 / 00:00", color.NRGBA{R: 150, G: 150, B: 150, A: 255})
+	ui.totalLabel.TextSize = 10
+	ui.totalLabel.Alignment = fyne.TextAlignCenter
 
 	ui.progress = widget.NewProgressBar()
 	ui.progress.TextFormatter = func() string { return "" }
@@ -55,8 +57,7 @@ func (ui *TimerUI) setup() {
 	ui.background = canvas.NewRectangle(color.NRGBA{R: 30, G: 30, B: 30, A: 200})
 
 	menu := fyne.NewMenu("",
-		fyne.NewMenuItem("Design Quick Blueprint", ui.showConfig),
-		fyne.NewMenuItem("Blueprint Library", ui.manager.Show),
+		fyne.NewMenuItem("Open Dashboard", ui.dashboard.Show),
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Reset current phase", ui.engine.ResetPhase),
 		fyne.NewMenuItem("Reset All", ui.engine.Reset),
@@ -67,8 +68,9 @@ func (ui *TimerUI) setup() {
 	content := container.NewStack(
 		ui.background,
 		container.NewVBox(
-			container.NewPadded(ui.phaseLabel),
+			ui.phaseLabel,
 			container.NewCenter(ui.timerLabel),
+			ui.totalLabel,
 			ui.progress,
 		),
 		&InteractionWrapper{
@@ -79,16 +81,27 @@ func (ui *TimerUI) setup() {
 	)
 
 	ui.window.SetContent(content)
+	ui.window.Resize(fyne.NewSize(220, 110))
+}
+
+func (ui *TimerUI) formatTime(s int) string {
+	return fmt.Sprintf("%02d:%02d", s/60, s%60)
 }
 
 func (ui *TimerUI) OnTick(state engine.TimerState) {
 	ui.phaseLabel.Text = strings.ToUpper(state.CurrentPhase.Name)
-	ui.timerLabel.Text = state.CurrentPhase.FormatDuration(state.TotalMinutes)
-    ui.timerLabel.Text = fmt.Sprintf("%02d:%02d", state.RemainingSeconds/60, state.RemainingSeconds%60)
-	ui.progress.Max = float64(state.CurrentPhase.Duration)
-	ui.progress.Value = float64(state.RemainingSeconds)
-
-	if state.RemainingSeconds < 60 && state.IsRunning {
+	
+	// Main Focus: Total Session Time (Remaining / Total)
+	ui.timerLabel.Text = fmt.Sprintf("%s / %s", ui.formatTime(state.TotalRemainingSeconds), ui.formatTime(state.TotalDurationSeconds))
+	
+	// Secondary: Current Phase Time (Remaining / Total)
+	ui.totalLabel.Text = fmt.Sprintf("PHASE: %s / %s", ui.formatTime(state.RemainingSeconds), ui.formatTime(state.CurrentPhase.Duration))
+	
+	// Progress bar reflects Total Session Progress
+	ui.progress.Max = float64(state.TotalDurationSeconds)
+	ui.progress.Value = float64(state.TotalDurationSeconds - state.TotalRemainingSeconds)
+	
+	if state.TotalRemainingSeconds < 300 && state.IsRunning { // Red in last 5 mins
 		ui.timerLabel.Color = color.NRGBA{R: 255, G: 100, B: 0, A: 255}
 	} else if !state.IsRunning {
 		ui.timerLabel.Color = color.NRGBA{R: 200, G: 200, B: 200, A: 255}
@@ -98,172 +111,11 @@ func (ui *TimerUI) OnTick(state engine.TimerState) {
 
 	ui.phaseLabel.Refresh()
 	ui.timerLabel.Refresh()
+	ui.totalLabel.Refresh()
 	ui.progress.Refresh()
 }
 
-func (ui *TimerUI) showConfig() {
-	ui.showBlueprintEditor(nil, func(b *domain.Blueprint) {
-		ui.engine.UpdatePhases(b.Phases)
-	})
-}
-
-func (ui *TimerUI) showBlueprintEditor(existing *domain.Blueprint, onSave func(*domain.Blueprint)) {
-	title := "Blueprint Designer"
-	if existing != nil {
-		title = "Edit: " + existing.Name
-	}
-	configWindow := fyne.CurrentApp().NewWindow(title)
-	
-	phases := ui.engine.GetPhases()
-	if existing != nil {
-		phases = existing.Phases
-	}
-
-	totalMins := 0
-	for _, p := range phases {
-		totalMins += p.Duration / 60
-	}
-
-	nameEntry := widget.NewEntry()
-	if existing != nil {
-		nameEntry.SetText(existing.Name)
-	} else {
-		nameEntry.SetText("New Blueprint")
-	}
-
-	totalEntry := widget.NewEntry()
-	totalEntry.SetText(strconv.Itoa(totalMins))
-	totalEntry.PlaceHolder = "Total Duration (mins)"
-
-	rows := container.NewVBox()
-	summaryLabel := widget.NewLabel("")
-
-	updateSummary := func() {
-		currentSumSec := 0
-		targetMins, _ := strconv.Atoi(totalEntry.Text)
-
-		for _, row := range rows.Objects {
-			if box, ok := row.(*fyne.Container); ok {
-				if grid, ok := box.Objects[0].(*fyne.Container); ok {
-					if minsEntry, ok := grid.Objects[1].(*widget.Entry); ok {
-						txt := strings.TrimSpace(minsEntry.Text)
-						if strings.HasSuffix(txt, "%") {
-							p, _ := strconv.Atoi(strings.TrimSuffix(txt, "%"))
-							currentSumSec += (p * targetMins * 60) / 100
-						} else {
-							m, _ := strconv.Atoi(txt)
-							currentSumSec += m * 60
-						}
-					}
-				}
-			}
-		}
-		summaryLabel.SetText(fmt.Sprintf("Allocated: %d / %d mins", currentSumSec/60, targetMins))
-		summaryLabel.Importance = widget.DangerImportance
-		if currentSumSec == targetMins*60 && targetMins > 0 {
-			summaryLabel.Importance = widget.SuccessImportance
-		}
-		summaryLabel.Refresh()
-	}
-
-	addPhaseRow := func(name string, val string) {
-		pNameEntry := widget.NewEntry()
-		pNameEntry.SetText(name)
-		pNameEntry.PlaceHolder = "Phase Name"
-		pNameEntry.OnChanged = func(string) { updateSummary() }
-
-		minsEntry := widget.NewEntry()
-		minsEntry.SetText(val)
-		minsEntry.PlaceHolder = "Mins or %"
-		minsEntry.OnChanged = func(string) { updateSummary() }
-
-		removeBtn := widget.NewButtonWithIcon("", theme.DeleteIcon(), nil)
-		grid := container.NewGridWithColumns(2, pNameEntry, minsEntry)
-		row := container.NewBorder(nil, nil, nil, removeBtn, grid)
-		
-		removeBtn.OnTapped = func() {
-			rows.Remove(row)
-			updateSummary()
-		}
-
-		rows.Add(row)
-		updateSummary()
-	}
-
-	for _, p := range phases {
-		val := strconv.Itoa(p.Duration / 60)
-		if p.IsPercent {
-			val = fmt.Sprintf("%d%%", p.Percent)
-		}
-		addPhaseRow(p.Name, val)
-	}
-
-	totalEntry.OnChanged = func(string) { updateSummary() }
-
-	scroll := container.NewVScroll(rows)
-	scroll.SetMinSize(fyne.NewSize(400, 300))
-
-	saveBtn := widget.NewButtonWithIcon("Save Blueprint", theme.ConfirmIcon(), func() {
-		newPhases := []domain.Phase{}
-		targetMins, _ := strconv.Atoi(totalEntry.Text)
-		
-		for _, row := range rows.Objects {
-			if box, ok := row.(*fyne.Container); ok {
-				if grid, ok := box.Objects[0].(*fyne.Container); ok {
-					pNameEntry := grid.Objects[0].(*widget.Entry)
-					minsEntry := grid.Objects[1].(*widget.Entry)
-					
-					txt := strings.TrimSpace(minsEntry.Text)
-					phase := domain.Phase{Name: pNameEntry.Text}
-					if strings.HasSuffix(txt, "%") {
-						p, _ := strconv.Atoi(strings.TrimSuffix(txt, "%"))
-						phase.IsPercent = true
-						phase.Percent = p
-						phase.Duration = (p * targetMins * 60) / 100
-					} else {
-						m, _ := strconv.Atoi(txt)
-						phase.Duration = m * 60
-					}
-					
-					if phase.Name != "" && phase.Duration > 0 {
-						newPhases = append(newPhases, phase)
-					}
-				}
-			}
-		}
-
-		if err := domain.ValidatePhases(newPhases, targetMins); err == nil {
-			onSave(&domain.Blueprint{
-				Name:   nameEntry.Text,
-				Total:  targetMins,
-				Phases: newPhases,
-			})
-			configWindow.Close()
-		} else {
-			dialog.ShowError(err, configWindow)
-		}
-	})
-
-	addBtn := widget.NewButtonWithIcon("Add Phase", theme.ContentAddIcon(), func() {
-		addPhaseRow("New Phase", "0")
-	})
-
-	footer := container.NewVBox(
-		summaryLabel,
-		container.NewGridWithColumns(2, addBtn, saveBtn),
-	)
-
-	configWindow.SetContent(container.NewBorder(
-		container.NewVBox(
-			widget.NewLabelWithStyle("Blueprint Architect", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-			container.NewGridWithColumns(2, nameEntry, totalEntry),
-		),
-		footer,
-		nil, nil,
-		scroll,
-	))
-	
-	configWindow.Resize(fyne.NewSize(450, 550))
-	configWindow.Show()
-	updateSummary()
+func (ui *TimerUI) Show() {
+	ui.window.Show()
+	platform.TweakWindow("InterviewTimer")
 }

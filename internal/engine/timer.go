@@ -6,11 +6,13 @@ import (
 )
 
 type TimerState struct {
-	CurrentPhaseIndex int
-	RemainingSeconds  int
-	IsRunning         bool
-	CurrentPhase      domain.Phase
-	TotalMinutes      int
+	CurrentPhaseIndex     int
+	RemainingSeconds      int
+	IsRunning             bool
+	CurrentPhase          domain.Phase
+	TotalMinutes          int
+	TotalRemainingSeconds int
+	TotalDurationSeconds  int
 }
 
 type TimerObserver interface {
@@ -18,26 +20,37 @@ type TimerObserver interface {
 }
 
 type TimerEngine struct {
-	phases      []domain.Phase
-	state       TimerState
-	observers   []TimerObserver
-	stopChan    chan bool
+	phases             []domain.Phase
+	state              TimerState
+	observers          []TimerObserver
+	stopChan           chan bool
+	currentBlueprintID string
+}
+
+func (e *TimerEngine) GetCurrentBlueprintID() string {
+	return e.currentBlueprintID
+}
+
+func (e *TimerEngine) SetCurrentBlueprintID(id string) {
+	e.currentBlueprintID = id
 }
 
 func NewTimerEngine(phases []domain.Phase) *TimerEngine {
-	total := 0
+	totalSec := 0
 	for _, p := range phases {
-		total += p.Duration
+		totalSec += p.Duration
 	}
 	return &TimerEngine{
 		phases:   phases,
 		stopChan: make(chan bool),
 		state: TimerState{
-			CurrentPhaseIndex: 0,
-			RemainingSeconds:  phases[0].Duration,
-			IsRunning:         false,
-			CurrentPhase:      phases[0],
-			TotalMinutes:      total / 60,
+			CurrentPhaseIndex:     0,
+			RemainingSeconds:      phases[0].Duration,
+			IsRunning:             false,
+			CurrentPhase:          phases[0],
+			TotalMinutes:          totalSec / 60,
+			TotalDurationSeconds:  totalSec,
+			TotalRemainingSeconds: totalSec,
 		},
 	}
 }
@@ -66,10 +79,12 @@ func (e *TimerEngine) Start() {
 func (e *TimerEngine) tick() {
 	if e.state.RemainingSeconds > 0 {
 		e.state.RemainingSeconds--
+		e.state.TotalRemainingSeconds--
 	} else if e.state.CurrentPhaseIndex < len(e.phases)-1 {
 		e.state.CurrentPhaseIndex++
 		e.state.CurrentPhase = e.phases[e.state.CurrentPhaseIndex]
 		e.state.RemainingSeconds = e.state.CurrentPhase.Duration
+		e.state.TotalRemainingSeconds--
 	} else {
 		e.state.IsRunning = false
 	}
@@ -82,6 +97,12 @@ func (e *TimerEngine) Toggle() {
 }
 
 func (e *TimerEngine) Reset() {
+	totalSec := 0
+	for _, p := range e.phases {
+		totalSec += p.Duration
+	}
+	e.state.TotalDurationSeconds = totalSec
+	e.state.TotalRemainingSeconds = totalSec
 	e.state.CurrentPhaseIndex = 0
 	e.state.CurrentPhase = e.phases[0]
 	e.state.RemainingSeconds = e.phases[0].Duration
@@ -90,17 +111,22 @@ func (e *TimerEngine) Reset() {
 }
 
 func (e *TimerEngine) ResetPhase() {
+	// Need to adjust TotalRemainingSeconds when resetting a phase
+	oldRemaining := e.state.RemainingSeconds
 	e.state.RemainingSeconds = e.phases[e.state.CurrentPhaseIndex].Duration
+	e.state.TotalRemainingSeconds += (e.state.RemainingSeconds - oldRemaining)
 	e.notify()
 }
 
 func (e *TimerEngine) UpdatePhases(phases []domain.Phase) {
 	e.phases = phases
-	total := 0
+	totalSec := 0
 	for _, p := range phases {
-		total += p.Duration
+		totalSec += p.Duration
 	}
-	e.state.TotalMinutes = total / 60
+	e.state.TotalMinutes = totalSec / 60
+	e.state.TotalDurationSeconds = totalSec
+	e.state.TotalRemainingSeconds = totalSec
 	e.Reset()
 }
 
