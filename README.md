@@ -11,28 +11,27 @@ A minimalist, "Always-on-Top", frameless interview timer for macOS.
 - **Visual Cues**: Green for active, Red when exceeding limit/reaching zero.
 - **Lightweight**: Optimized binary size using stripped debug symbols.
 
-## Setup
-Ensure you have [Go](https://go.dev/dl/) installed.
+## Setup & Quick Installation
+Ensure you have [Go](https://go.dev/dl/) installed. Then run the automated install script:
 
 ```bash
-# Initialize and fetch dependencies
-go mod tidy
+chmod +x install.sh
+./install.sh
 ```
 
-## Build
-To create a small, optimized executable:
-
-```bash
-go build -ldflags="-s -w" -o timer main.go
-```
+This script will:
+1. Build the optimized binary.
+2. Package it as a native macOS `.app` bundle with a custom icon.
+3. Install it to your `/Applications` folder.
+4. Install the CLI tool to `/usr/local/bin/timer`.
 
 ## Usage
-- **Run**: `./timer`
-- **Move**: Click and drag the timer to your preferred corner.
-- **Switch Mode**: Right-click and select "Toggle Mode".
-- **Reset**: Right-click and select "Reset".
-- **Quit**: Right-click and select "Quit".
+- **Launch**: Open **Timer** from your Applications folder or run `timer` in terminal.
+- **Move**: Click and drag the timer anywhere on the screen.
+- **Switch Mode**: Right-click and select **Toggle Mode (Up/Down)**.
+- **Reset**: Right-click and select **Reset**.
+- **Quit**: Right-click and select **Quit**.
 
 ---
 
-*Note: This application uses native macOS APIs (Cocoa) via CGO to achieve the frameless and always-on-top behavior. It is specifically optimized for macOS.*
+*Note: This application uses native macOS APIs (Cocoa) via CGO and is specifically optimized for macOS.*

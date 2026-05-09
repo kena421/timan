@@ -8,20 +8,22 @@ package main
 void makeWindowTopmostAndFrameless(const char* title) {
     @autoreleasepool {
         NSString* nsTitle = [NSString stringWithUTF8String:title];
-        NSArray* windows = [NSApp windows];
-        for (NSWindow* window in windows) {
-            if ([[window title] isEqualToString:nsTitle]) {
-                [window setStyleMask:NSWindowStyleMaskBorderless];
-                [window setLevel:NSStatusWindowLevel]; // Always on top
-                [window setBackgroundColor:[NSColor clearColor]];
-                [window setOpaque:NO];
-                [window setHasShadow:YES];
-                [window setMovableByWindowBackground:YES];
-                // Make it visible on all spaces
-                [window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorFullScreenAuxiliary];
-                break;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSArray* windows = [NSApp windows];
+            for (NSWindow* window in windows) {
+                if ([[window title] isEqualToString:nsTitle]) {
+                    [window setStyleMask:NSWindowStyleMaskBorderless];
+                    [window setLevel:NSStatusWindowLevel]; // Always on top
+                    [window setBackgroundColor:[NSColor clearColor]];
+                    [window setOpaque:NO];
+                    [window setHasShadow:YES];
+                    [window setMovableByWindowBackground:YES];
+                    // Make it visible on all spaces
+                    [window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorFullScreenAuxiliary];
+                    break;
+                }
             }
-        }
+        });
     }
 }
 */
