@@ -5,70 +5,57 @@ import (
 	"github.com/kena421/timan/internal/engine"
 	"github.com/kena421/timan/internal/ui"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/theme"
 )
 
+// main is the entry point for the Timan HUD utility.
+// It initializes the persistence layer, restores application state,
+// bootstraps the timing engine, and launches the graphical HUD.
 func main() {
-	// 1. Load Persistence
+	// 1. Initialize Application & Window
+	myApp := app.NewWithID("com.timan.timer")
+	window := myApp.NewWindow("Timan")
+	
+	// 2. Initialize Persistence Layer
 	store := domain.NewEventStore()
-	events, _ := store.LoadAll()
-	state := store.LoadState()
-
-	initialPhases := []domain.Phase{
-		{Name: "Intro", Duration: 5 * 60},
-		{Name: "Main Content", Duration: 45 * 60},
-		{Name: "Wrap-up", Duration: 10 * 60},
-	}
-	lastID := ""
-	eventName := "Standard Session"
-	warningSec := 5 * 60 // Default 5 mins
-
-	// Find the last used event OR the first available event
-	targetID := state.LastEventID
-	if targetID == "" && len(events) > 0 {
-		targetID = events[0].ID
-	}
-
-	if targetID != "" {
+	state, _ := store.LoadState()
+	
+	// 3. Prepare Default/Last-Used Profile
+	// Default to 60 minutes if no library exists
+	defaultPhases := []domain.Phase{{Name: "Session", Duration: 3600}}
+	eventName := "Quick Timer"
+	warningSec := 300 // 5 minute default alert
+	
+	// Try to restore the last used profile from the library
+	if state.LastEventID != "" {
+		events, _ := store.LoadAll()
 		for _, e := range events {
-			if e.ID == targetID {
-				initialPhases = e.Phases
-				lastID = e.ID
+			if e.ID == state.LastEventID {
+				defaultPhases = e.Phases
 				eventName = e.Name
-				
-				wVal := e.WarningValue
+				// Calculate alert threshold
+				wMins := e.WarningValue
 				if e.WarningIsPercent {
-					wVal = (e.WarningValue * e.Total) / 100
+					wMins = (e.WarningValue * e.Total) / 100
 				}
-				warningSec = wVal * 60
+				warningSec = wMins * 60
 				break
 			}
 		}
 	}
 
-	// 2. Initialize Engine
-	timerEngine := engine.NewTimerEngine(eventName, initialPhases, warningSec)
-	if lastID != "" {
-		timerEngine.SetCurrentEventID(lastID)
-	}
-	timerEngine.Start()
-
-	// 3. Initialize App & UI
-	// Using a generic app ID
-	a := app.NewWithID("com.timan.timer")
-	a.SetIcon(theme.SettingsIcon())
+	// 4. Initialize Core Engine & UI
+	tm := engine.NewTimerEngine(eventName, defaultPhases, warningSec)
+	tm.SetCurrentEventID(state.LastEventID)
 	
-	// Main Window
-	w := a.NewWindow("Timan")
-	w.SetFixedSize(true)
-
-	// Dependency Injection: UI depends on the engine
-	timerUI := ui.NewTimerUI(w, timerEngine)
-
-	// 4. Show (handles internal platform tweaks)
+	// TimerUI acts as an observer to the engine
+	timerUI := ui.NewTimerUI(window, tm)
+	
+	// 5. Start Background Ticker
+	tm.Start()
+	
+	// 6. Launch HUD and enter main event loop
 	timerUI.Show()
-
-	// 5. Run
-	a.Run()
+	myApp.Run()
 }

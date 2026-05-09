@@ -6,61 +6,53 @@ import (
 	"path/filepath"
 )
 
-// Event represents a timed session structure with multiple phases.
-// It serves as a template or "blueprint" for a specific type of session.
-type Event struct {
+// Blueprint represents a full event profile template.
+type Blueprint struct {
 	ID               string  `json:"id"`
 	Name             string  `json:"name"`
-	Total            int     `json:"total"` // total minutes
-	WarningValue     int     `json:"warning_value"`
-	WarningIsPercent bool    `json:"warning_is_percent"`
-	Phases           []Phase `json:"phases"`
+	Total            int     `json:"total"`             // Total duration in minutes
+	Phases           []Phase `json:"phases"`            // Breakdown of the event
+	WarningValue     int     `json:"warning_value"`     // Alert threshold value
+	WarningIsPercent bool    `json:"warning_is_percent"` // If true, warning is calculated as % of total
 }
 
-// EventStore handles the persistence of Event templates and application state.
-type EventStore struct {
-	path      string
-	statePath string
-}
-
-// AppState holds persistent application-wide settings.
+// AppState persists small pieces of application configuration across restarts.
 type AppState struct {
-	LastEventID string `json:"last_event_id"`
+	LastEventID string `json:"last_event_id"` // Tracks the last profile the user selected
 }
 
-// NewEventStore initializes a new EventStore, creating the configuration directory if it doesn't exist.
+// EventStore handles the loading and saving of both event templates and app state.
+type EventStore struct {
+	path      string // Path to events.json
+	statePath string // Path to state.json
+}
+
+// NewEventStore initializes the local file store in the user's config directory.
 func NewEventStore() *EventStore {
 	home, _ := os.UserHomeDir()
-	configDir := filepath.Join(home, ".config", "timan")
-	os.MkdirAll(configDir, 0755)
+	dir := filepath.Join(home, ".config", "timan")
+	os.MkdirAll(dir, 0755)
+	
 	return &EventStore{
-		path:      filepath.Join(configDir, "events.json"),
-		statePath: filepath.Join(configDir, "state.json"),
+		path:      filepath.Join(dir, "events.json"),
+		statePath: filepath.Join(dir, "state.json"),
 	}
 }
 
-// SaveState persists the current application state.
-func (s *EventStore) SaveState(state AppState) error {
-	data, err := json.Marshal(state)
+// LoadAll retrieves all saved event templates from disk.
+func (s *EventStore) LoadAll() ([]Blueprint, error) {
+	data, err := os.ReadFile(s.path)
 	if err != nil {
-		return err
+		return []Blueprint{}, nil
 	}
-	return os.WriteFile(s.statePath, data, 0644)
+
+	var events []Blueprint
+	err = json.Unmarshal(data, &events)
+	return events, err
 }
 
-// LoadState retrieves the persisted application state.
-func (s *EventStore) LoadState() AppState {
-	data, err := os.ReadFile(s.statePath)
-	if err != nil {
-		return AppState{}
-	}
-	var state AppState
-	json.Unmarshal(data, &state)
-	return state
-}
-
-// SaveAll persists a slice of Events to the store.
-func (s *EventStore) SaveAll(events []Event) error {
+// Save persists the provided list of event templates to events.json.
+func (s *EventStore) Save(events []Blueprint) error {
 	data, err := json.MarshalIndent(events, "", "  ")
 	if err != nil {
 		return err
@@ -68,62 +60,23 @@ func (s *EventStore) SaveAll(events []Event) error {
 	return os.WriteFile(s.path, data, 0644)
 }
 
-// LoadAll retrieves all persisted Events from the store.
-// If the store file doesn't exist, it returns default event templates.
-func (s *EventStore) LoadAll() ([]Event, error) {
-	// Check for old blueprints.json for backward compatibility
-	oldPath := filepath.Join(filepath.Dir(s.path), "blueprints.json")
-	if _, err := os.Stat(s.path); os.IsNotExist(err) {
-		if _, errOld := os.Stat(oldPath); errOld == nil {
-			// Migrate from old path
-			data, err := os.ReadFile(oldPath)
-			if err == nil {
-				var events []Event
-				if err := json.Unmarshal(data, &events); err == nil {
-					s.SaveAll(events)
-					// Optional: os.Remove(oldPath) - keeping it for safety for now
-					return events, nil
-				}
-			}
-		}
-		return s.getDefaults(), nil
+// LoadState retrieves persistent app configuration (like LastEventID).
+func (s *EventStore) LoadState() (AppState, error) {
+	data, err := os.ReadFile(s.statePath)
+	if err != nil {
+		return AppState{}, nil
 	}
 
-	data, err := os.ReadFile(s.path)
-	if err != nil {
-		return nil, err
-	}
-	var events []Event
-	err = json.Unmarshal(data, &events)
-	return events, err
+	var state AppState
+	err = json.Unmarshal(data, &state)
+	return state, err
 }
 
-func (s *EventStore) getDefaults() []Event {
-	return []Event{
-		{
-			ID:               "default-session",
-			Name:             "Standard Session",
-			Total:            60,
-			WarningValue:     5,
-			WarningIsPercent: false,
-			Phases: []Phase{
-				{Name: "Intro", Duration: 5 * 60},
-				{Name: "Main Content", Duration: 45 * 60},
-				{Name: "Wrap-up", Duration: 10 * 60},
-			},
-		},
-		{
-			ID:               "standard-interview",
-			Name:             "Tech Interview",
-			Total:            60,
-			WarningValue:     5,
-			WarningIsPercent: false,
-			Phases: []Phase{
-				{Name: "Intro", Duration: 5 * 60},
-				{Name: "Understand", Duration: 10 * 60},
-				{Name: "Design", Duration: 20 * 60},
-				{Name: "Discussion", Duration: 25 * 60},
-			},
-		},
+// SaveState persists small app-level config like the last used profile.
+func (s *EventStore) SaveState(state AppState) error {
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return err
 	}
+	return os.WriteFile(s.statePath, data, 0644)
 }

@@ -16,6 +16,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+// UI Color Palette (Industrial Neon)
 var (
 	colorNeonGreen   = color.NRGBA{R: 34, G: 197, B: 94, A: 255}
 	colorBrightGreen = color.NRGBA{R: 167, G: 243, B: 208, A: 255}
@@ -25,46 +26,46 @@ var (
 	colorSkyBlue     = color.NRGBA{R: 186, G: 230, B: 253, A: 255}
 	colorBgDeep      = color.NRGBA{R: 9, G: 9, B: 11, A: 245}
 	colorBgWell      = color.NRGBA{R: 39, G: 39, B: 42, A: 255}
-	colorBorderLight = color.NRGBA{R: 63, G: 63, B: 70, A: 255}
 )
 
-// TimerUI handles the main floating window of the application.
+// TimerUI manages the primary HUD window and its interactive elements.
+// It implements the engine.TimerObserver interface to react to ticks.
 type TimerUI struct {
 	window             fyne.Window
-	timerLabel         *canvas.Text
-	totalLabel         *canvas.Text
-	upcomingLabel      *canvas.Text
-	background         *canvas.Rectangle
-	border             *canvas.Rectangle
-	eventNameLabel     *canvas.Text
+	timerLabel         *canvas.Text      // Large center countdown (total time)
+	totalLabel         *canvas.Text      // Sub-countdown (phase name + phase time)
+	upcomingLabel      *canvas.Text      // Small top-left preview of next phase
+	background         *canvas.Rectangle // The main HUD background
+	border             *canvas.Rectangle // Optional window border (currently transparent)
+	eventNameLabel     *canvas.Text      // Sub-info top-center showing active profile name
 
-	playIcon *TappableIcon
+	playIcon *TappableIcon // Toggle button for start/pause
 
 	engine    *engine.TimerEngine
 	dashboard *Dashboard
-	privacyOn bool
+	privacyOn bool // Tracks if Screen Sharing Privacy is active
 }
 
-// TappableIcon is a widget that wraps an icon and provides a tap handler.
+// TappableIcon is a lightweight custom widget that makes an icon respond to mouse clicks.
 type TappableIcon struct {
 	widget.Icon
 	OnTap   func()
 	minSize fyne.Size
 }
 
-// Tapped implements the fyne.Tappable interface.
+// Tapped captures the click event from the Fyne driver.
 func (t *TappableIcon) Tapped(_ *fyne.PointEvent) {
 	if t.OnTap != nil {
 		t.OnTap()
 	}
 }
 
-// MinSize overrides the default minimum size of the icon.
+// MinSize allows us to control the "hit area" and visual size of the icon.
 func (t *TappableIcon) MinSize() fyne.Size {
 	return t.minSize
 }
 
-// NewTappableIcon creates a new TappableIcon instance.
+// NewTappableIcon factory for interactive UI elements.
 func NewTappableIcon(res fyne.Resource, size fyne.Size, onTap func()) *TappableIcon {
 	t := &TappableIcon{OnTap: onTap, minSize: size}
 	t.SetResource(res)
@@ -72,7 +73,7 @@ func NewTappableIcon(res fyne.Resource, size fyne.Size, onTap func()) *TappableI
 	return t
 }
 
-// NewTimerUI initializes the TimerUI and connects it to the TimerEngine.
+// NewTimerUI constructs the HUD and links it to the provided engine.
 func NewTimerUI(w fyne.Window, e *engine.TimerEngine) *TimerUI {
 	ui := &TimerUI{
 		window: w,
@@ -81,12 +82,13 @@ func NewTimerUI(w fyne.Window, e *engine.TimerEngine) *TimerUI {
 	ui.dashboard = NewDashboard(ui, e)
 	ui.setup()
 	e.AddObserver(ui)
-	ui.OnTick(e.GetState())
+	ui.OnTick(e.GetState()) // Set initial state
 	return ui
 }
 
+// setup builds the visual tree of the HUD using a balanced 4-corner layout.
 func (ui *TimerUI) setup() {
-	// 1. Scaled Main Timer
+	// 1. Scaled Main Timer (Total Remaining)
 	ui.timerLabel = canvas.NewText("00:00", colorBrightGreen)
 	ui.timerLabel.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	ui.timerLabel.TextSize = 24
@@ -110,22 +112,18 @@ func (ui *TimerUI) setup() {
 	ui.eventNameLabel.TextStyle = fyne.TextStyle{Bold: true}
 	ui.eventNameLabel.Alignment = fyne.TextAlignTrailing
 
-	// 4. Backgrounds
+	// 4. Background Layers
 	ui.background = canvas.NewRectangle(colorBgDeep)
 	ui.border = canvas.NewRectangle(color.Transparent)
-	ui.border.StrokeColor = color.Transparent
 	ui.border.StrokeWidth = 0
 
-	// 5. Accessible Controls (Top Right)
+	// 5. Flushed Controls (Top Right)
 	iconSize := fyne.NewSize(14, 14)
 	ui.playIcon = NewTappableIcon(theme.MediaPlayIcon(), iconSize, func() { ui.engine.Toggle() })
 	reset := NewTappableIcon(theme.ViewRefreshIcon(), iconSize, func() { ui.engine.Reset() })
 	dash := NewTappableIcon(theme.SettingsIcon(), iconSize, func() { ui.dashboard.Show() })
-
-	controlBg := canvas.NewRectangle(colorBgWell)
-	// Only bottom-left corner rounded to "flush" against top and right edges
-	controlBg.CornerRadius = 4
 	
+	// Privacy (Screen Sharing Hide) Button
 	ui.privacyOn = false
 	privacyBtn := NewTappableIcon(theme.VisibilityIcon(), iconSize, nil)
 	privacyBtn.OnTap = func() {
@@ -139,14 +137,17 @@ func (ui *TimerUI) setup() {
 		privacyBtn.Refresh()
 	}
 
+	controlBg := canvas.NewRectangle(colorBgWell)
+	controlBg.CornerRadius = 4
+	
 	iconContainer := container.NewHBox(ui.playIcon, reset, privacyBtn, dash)
 	controlWell := container.NewStack(controlBg, container.NewPadded(iconContainer))
 
-	// ASSEMBLY (Zero-Padding on Controls)
+	// ASSEMBLY (Four-Corner Balanced Distribution)
 	topRow := container.NewHBox(
 		container.NewPadded(ui.upcomingLabel),
 		layout.NewSpacer(),
-		controlWell, // Flushed to the corner
+		controlWell, // No padding to allow corner flushing
 	)
 
 	bottomRow := container.NewHBox(
@@ -165,7 +166,7 @@ func (ui *TimerUI) setup() {
 	content := container.NewStack(
 		ui.background,
 		ui.border,
-		mainLayout, // Removed outer padding to allow flushing
+		mainLayout,
 	)
 
 	ui.window.SetContent(content)
@@ -176,8 +177,9 @@ func (ui *TimerUI) formatTime(s int) string {
 	return fmt.Sprintf("%02d:%02d", s/60, s%60)
 }
 
-// OnTick updates the UI with the latest timer state.
+// OnTick is the reactive callback that updates the HUD every second.
 func (ui *TimerUI) OnTick(state engine.TimerState) {
+	// Update text content
 	ui.timerLabel.Text = ui.formatTime(state.TotalRemainingSeconds)
 	ui.totalLabel.Text = fmt.Sprintf("%s: %s", 
 		strings.ToUpper(state.CurrentPhase.Name),
@@ -191,23 +193,29 @@ func (ui *TimerUI) OnTick(state engine.TimerState) {
 
 	ui.eventNameLabel.Text = strings.ToUpper(state.EventName)
 
+	// Update play/pause icon state
 	if state.IsRunning {
 		ui.playIcon.SetResource(theme.MediaPauseIcon())
 	} else {
 		ui.playIcon.SetResource(theme.MediaPlayIcon())
 	}
 
+	// Update Visual Modes (Alert, Paused, Active)
 	if state.TotalRemainingSeconds <= state.WarningSeconds && state.IsRunning {
+		// Alert Mode: Neon Red Digit + Slight Red Background Glow
 		ui.timerLabel.Color = colorNeonRed
 		ui.background.FillColor = color.NRGBA{R: 45, G: 10, B: 10, A: 245}
 	} else if !state.IsRunning {
+		// Paused Mode: Dimmer Ghostly Green
 		ui.timerLabel.Color = colorGhostGreen
 		ui.background.FillColor = colorBgDeep
 	} else {
+		// Active Mode: Vibrant Bright Green
 		ui.timerLabel.Color = colorBrightGreen
 		ui.background.FillColor = colorBgDeep
 	}
 
+	// Force canvas refreshes
 	ui.timerLabel.Refresh()
 	ui.totalLabel.Refresh()
 	ui.upcomingLabel.Refresh()
@@ -217,7 +225,7 @@ func (ui *TimerUI) OnTick(state engine.TimerState) {
 	ui.playIcon.Refresh()
 }
 
-// Show displays the main timer window and applies platform tweaks.
+// Show renders the window and applies platform-specific HUD tweaks (Always on Top, etc.)
 func (ui *TimerUI) Show() {
 	ui.window.Show()
 	platform.TweakWindow("Timan")
