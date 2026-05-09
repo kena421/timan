@@ -3,7 +3,7 @@ class Timan < Formula
   homepage "https://github.com/kena421/timan"
   url "https://github.com/kena421/timan/archive/refs/heads/master.tar.gz"
   version "1.0.0"
-  sha256 "562991532755b743d5e6ac8b561f082bda458195a75f831f55d5b29afaf253c5"
+  sha256 "0ba75386fc9242ca4b6a0058dbb01b52669dd9da065eac8f95e310305aa8fd8f"
   license "MIT"
 
   depends_on "go" => :build
