@@ -9,8 +9,8 @@ class Timan < Formula
   depends_on "go" => :build
 
   def install
-    # Build the optimized CLI binary
-    system "go", "build", "-ldflags", "-s -w", "-o", bin/"timan", "main.go"
+    # Build the optimized CLI binary using standard Homebrew Go arguments
+    system "go", "build", *std_go_args(ldflags: "-s -w"), "main.go"
     
     # Note: Homebrew formulae are primarily for CLI tools.
     # To install the .app bundle, a Homebrew Cask is typically used.
