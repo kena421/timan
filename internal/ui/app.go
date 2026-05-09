@@ -83,7 +83,7 @@ func (ui *TimerUI) setup() {
 
 func (ui *TimerUI) OnTick(state engine.TimerState) {
 	ui.phaseLabel.Text = strings.ToUpper(state.CurrentPhase.Name)
-	ui.timerLabel.Text = state.CurrentPhase.FormatDuration() // This is wrong, should be RemainingSeconds
+	ui.timerLabel.Text = state.CurrentPhase.FormatDuration(state.TotalMinutes)
     ui.timerLabel.Text = fmt.Sprintf("%02d:%02d", state.RemainingSeconds/60, state.RemainingSeconds%60)
 	ui.progress.Max = float64(state.CurrentPhase.Duration)
 	ui.progress.Value = float64(state.RemainingSeconds)
@@ -139,35 +139,42 @@ func (ui *TimerUI) showBlueprintEditor(existing *domain.Blueprint, onSave func(*
 	summaryLabel := widget.NewLabel("")
 
 	updateSummary := func() {
-		currentSum := 0
+		currentSumSec := 0
+		targetMins, _ := strconv.Atoi(totalEntry.Text)
+
 		for _, row := range rows.Objects {
 			if box, ok := row.(*fyne.Container); ok {
 				if grid, ok := box.Objects[0].(*fyne.Container); ok {
 					if minsEntry, ok := grid.Objects[1].(*widget.Entry); ok {
-						m, _ := strconv.Atoi(minsEntry.Text)
-						currentSum += m
+						txt := strings.TrimSpace(minsEntry.Text)
+						if strings.HasSuffix(txt, "%") {
+							p, _ := strconv.Atoi(strings.TrimSuffix(txt, "%"))
+							currentSumSec += (p * targetMins * 60) / 100
+						} else {
+							m, _ := strconv.Atoi(txt)
+							currentSumSec += m * 60
+						}
 					}
 				}
 			}
 		}
-		target, _ := strconv.Atoi(totalEntry.Text)
-		summaryLabel.SetText(fmt.Sprintf("Allocated: %d / %d mins", currentSum, target))
+		summaryLabel.SetText(fmt.Sprintf("Allocated: %d / %d mins", currentSumSec/60, targetMins))
 		summaryLabel.Importance = widget.DangerImportance
-		if currentSum == target && target > 0 {
+		if currentSumSec == targetMins*60 && targetMins > 0 {
 			summaryLabel.Importance = widget.SuccessImportance
 		}
 		summaryLabel.Refresh()
 	}
 
-	addPhaseRow := func(name string, mins int) {
+	addPhaseRow := func(name string, val string) {
 		pNameEntry := widget.NewEntry()
 		pNameEntry.SetText(name)
 		pNameEntry.PlaceHolder = "Phase Name"
 		pNameEntry.OnChanged = func(string) { updateSummary() }
 
 		minsEntry := widget.NewEntry()
-		minsEntry.SetText(strconv.Itoa(mins))
-		minsEntry.PlaceHolder = "Mins"
+		minsEntry.SetText(val)
+		minsEntry.PlaceHolder = "Mins or %"
 		minsEntry.OnChanged = func(string) { updateSummary() }
 
 		removeBtn := widget.NewButtonWithIcon("", theme.DeleteIcon(), nil)
@@ -184,7 +191,11 @@ func (ui *TimerUI) showBlueprintEditor(existing *domain.Blueprint, onSave func(*
 	}
 
 	for _, p := range phases {
-		addPhaseRow(p.Name, p.Duration/60)
+		val := strconv.Itoa(p.Duration / 60)
+		if p.IsPercent {
+			val = fmt.Sprintf("%d%%", p.Percent)
+		}
+		addPhaseRow(p.Name, val)
 	}
 
 	totalEntry.OnChanged = func(string) { updateSummary() }
@@ -194,7 +205,7 @@ func (ui *TimerUI) showBlueprintEditor(existing *domain.Blueprint, onSave func(*
 
 	saveBtn := widget.NewButtonWithIcon("Save Blueprint", theme.ConfirmIcon(), func() {
 		newPhases := []domain.Phase{}
-		target, _ := strconv.Atoi(totalEntry.Text)
+		targetMins, _ := strconv.Atoi(totalEntry.Text)
 		
 		for _, row := range rows.Objects {
 			if box, ok := row.(*fyne.Container); ok {
@@ -202,18 +213,29 @@ func (ui *TimerUI) showBlueprintEditor(existing *domain.Blueprint, onSave func(*
 					pNameEntry := grid.Objects[0].(*widget.Entry)
 					minsEntry := grid.Objects[1].(*widget.Entry)
 					
-					m, _ := strconv.Atoi(minsEntry.Text)
-					if pNameEntry.Text != "" && m > 0 {
-						newPhases = append(newPhases, domain.Phase{Name: pNameEntry.Text, Duration: m * 60})
+					txt := strings.TrimSpace(minsEntry.Text)
+					phase := domain.Phase{Name: pNameEntry.Text}
+					if strings.HasSuffix(txt, "%") {
+						p, _ := strconv.Atoi(strings.TrimSuffix(txt, "%"))
+						phase.IsPercent = true
+						phase.Percent = p
+						phase.Duration = (p * targetMins * 60) / 100
+					} else {
+						m, _ := strconv.Atoi(txt)
+						phase.Duration = m * 60
+					}
+					
+					if phase.Name != "" && phase.Duration > 0 {
+						newPhases = append(newPhases, phase)
 					}
 				}
 			}
 		}
 
-		if err := domain.ValidatePhases(newPhases, target); err == nil {
+		if err := domain.ValidatePhases(newPhases, targetMins); err == nil {
 			onSave(&domain.Blueprint{
 				Name:   nameEntry.Text,
-				Total:  target,
+				Total:  targetMins,
 				Phases: newPhases,
 			})
 			configWindow.Close()
@@ -223,7 +245,7 @@ func (ui *TimerUI) showBlueprintEditor(existing *domain.Blueprint, onSave func(*
 	})
 
 	addBtn := widget.NewButtonWithIcon("Add Phase", theme.ContentAddIcon(), func() {
-		addPhaseRow("New Phase", 0)
+		addPhaseRow("New Phase", "0")
 	})
 
 	footer := container.NewVBox(

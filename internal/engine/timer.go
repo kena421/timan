@@ -10,6 +10,7 @@ type TimerState struct {
 	RemainingSeconds  int
 	IsRunning         bool
 	CurrentPhase      domain.Phase
+	TotalMinutes      int
 }
 
 type TimerObserver interface {
@@ -24,6 +25,10 @@ type TimerEngine struct {
 }
 
 func NewTimerEngine(phases []domain.Phase) *TimerEngine {
+	total := 0
+	for _, p := range phases {
+		total += p.Duration
+	}
 	return &TimerEngine{
 		phases:   phases,
 		stopChan: make(chan bool),
@@ -32,6 +37,7 @@ func NewTimerEngine(phases []domain.Phase) *TimerEngine {
 			RemainingSeconds:  phases[0].Duration,
 			IsRunning:         false,
 			CurrentPhase:      phases[0],
+			TotalMinutes:      total / 60,
 		},
 	}
 }
@@ -90,6 +96,11 @@ func (e *TimerEngine) ResetPhase() {
 
 func (e *TimerEngine) UpdatePhases(phases []domain.Phase) {
 	e.phases = phases
+	total := 0
+	for _, p := range phases {
+		total += p.Duration
+	}
+	e.state.TotalMinutes = total / 60
 	e.Reset()
 }
 

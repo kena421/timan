@@ -7,12 +7,22 @@ import (
 )
 
 type Phase struct {
-	Name     string
-	Duration int // seconds
+	Name      string
+	Duration  int  // seconds (absolute)
+	IsPercent bool
+	Percent   int  // percentage value (if IsPercent is true)
 }
 
-func (p Phase) FormatDuration() string {
-	return fmt.Sprintf("%02d:%02d", p.Duration/60, p.Duration%60)
+func (p Phase) GetSeconds(totalMins int) int {
+	if p.IsPercent {
+		return (p.Percent * totalMins * 60) / 100
+	}
+	return p.Duration
+}
+
+func (p Phase) FormatDuration(totalMins int) string {
+	s := p.GetSeconds(totalMins)
+	return fmt.Sprintf("%02d:%02d", s/60, s%60)
 }
 
 func ParsePhases(input string) ([]Phase, error) {
@@ -37,10 +47,10 @@ func ParsePhases(input string) ([]Phase, error) {
 func ValidatePhases(phases []Phase, totalMinutes int) error {
 	sumSeconds := 0
 	for _, p := range phases {
-		sumSeconds += p.Duration
+		sumSeconds += p.GetSeconds(totalMinutes)
 	}
 	if sumSeconds != totalMinutes*60 {
-		return fmt.Errorf("sum of phases (%d mins) does not match total duration (%d mins)", sumSeconds/60, totalMinutes)
+		return fmt.Errorf("allocated time (%d mins) does not match total duration (%d mins)", sumSeconds/60, totalMinutes)
 	}
 	return nil
 }
