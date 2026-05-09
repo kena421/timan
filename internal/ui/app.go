@@ -42,6 +42,7 @@ type TimerUI struct {
 
 	engine    *engine.TimerEngine
 	dashboard *Dashboard
+	privacyOn bool
 }
 
 // TappableIcon is a widget that wraps an icon and provides a tap handler.
@@ -125,7 +126,20 @@ func (ui *TimerUI) setup() {
 	// Only bottom-left corner rounded to "flush" against top and right edges
 	controlBg.CornerRadius = 4
 	
-	iconContainer := container.NewHBox(ui.playIcon, reset, dash)
+	ui.privacyOn = false
+	privacyBtn := NewTappableIcon(theme.VisibilityIcon(), iconSize, nil)
+	privacyBtn.OnTap = func() {
+		ui.privacyOn = !ui.privacyOn
+		platform.SetPrivacyMode("Timan", ui.privacyOn)
+		if ui.privacyOn {
+			privacyBtn.SetResource(theme.VisibilityOffIcon())
+		} else {
+			privacyBtn.SetResource(theme.VisibilityIcon())
+		}
+		privacyBtn.Refresh()
+	}
+
+	iconContainer := container.NewHBox(ui.playIcon, reset, privacyBtn, dash)
 	controlWell := container.NewStack(controlBg, container.NewPadded(iconContainer))
 
 	// ASSEMBLY (Zero-Padding on Controls)

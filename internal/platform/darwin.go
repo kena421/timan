@@ -29,6 +29,25 @@ int makeWindowTopmostAndFrameless(const char* title) {
     }
     return found;
 }
+
+void setWindowSharing(const char* title, int allow) {
+    @autoreleasepool {
+        NSString* nsTitle = [NSString stringWithUTF8String:title];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSArray* windows = [NSApp windows];
+            for (NSWindow* window in windows) {
+                if ([[window title] isEqualToString:nsTitle]) {
+                    if (allow) {
+                        [window setSharingType:NSWindowSharingReadOnly];
+                    } else {
+                        [window setSharingType:NSWindowSharingNone];
+                    }
+                    break;
+                }
+            }
+        });
+    }
+}
 */
 import "C"
 import "time"
@@ -46,4 +65,14 @@ func TweakWindow(title string) {
 			time.Sleep(5 * time.Millisecond)
 		}
 	}()
+}
+
+// SetPrivacyMode toggles whether the window is visible to screen capture/sharing.
+func SetPrivacyMode(title string, enabled bool) {
+	cTitle := C.CString(title)
+	allow := 1
+	if enabled {
+		allow = 0 // sharing none
+	}
+	C.setWindowSharing(cTitle, C.int(allow))
 }
