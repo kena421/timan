@@ -179,6 +179,11 @@ func (d *Dashboard) ShowEditor(existing *domain.Blueprint) {
 	rows := container.NewVBox()
 	summaryLabel := widget.NewLabel("")
 
+	phaseHeader := container.NewGridWithColumns(2,
+		widget.NewLabelWithStyle("Phase Name", fyne.TextAlignLeading, fyne.TextStyle{Italic: true}),
+		widget.NewLabelWithStyle("Duration (mins or %)", fyne.TextAlignLeading, fyne.TextStyle{Italic: true}),
+	)
+
 	updateSummary := func() {
 		currentSumSec := 0
 		targetMins, _ := strconv.Atoi(totalEntry.Text)
@@ -297,10 +302,18 @@ func (d *Dashboard) ShowEditor(existing *domain.Blueprint) {
 		addPhaseRow("New Phase", "0")
 	})
 
+	header := container.NewGridWithColumns(3,
+		container.NewVBox(widget.NewLabel("Blueprint Name"), nameEntry),
+		container.NewVBox(widget.NewLabel("Total Duration (mins)"), totalEntry),
+		container.NewVBox(widget.NewLabel("Alert Threshold (mins or %)"), warningEntry),
+	)
+
 	content := container.NewBorder(
 		container.NewVBox(
 			widget.NewLabelWithStyle(title, fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-			container.NewGridWithColumns(3, nameEntry, totalEntry, warningEntry),
+			header,
+			widget.NewSeparator(),
+			phaseHeader,
 		),
 		container.NewVBox(summaryLabel, container.NewGridWithColumns(3, addBtn, cancelBtn, saveBtn)),
 		nil, nil,
