@@ -58,8 +58,13 @@ func (d *Dashboard) ShowLibrary() {
 
 	// Auto-select first if none active
 	if d.engine.GetCurrentBlueprintID() == "" {
-		d.engine.UpdatePhases(blueprints[0].Phases, blueprints[0].WarningMinutes)
-		d.engine.SetCurrentBlueprintID(blueprints[0].ID)
+		b := blueprints[0]
+		wMins := b.WarningValue
+		if b.WarningIsPercent {
+			wMins = (b.WarningValue * b.Total) / 100
+		}
+		d.engine.UpdatePhases(b.Phases, wMins)
+		d.engine.SetCurrentBlueprintID(b.ID)
 	}
 
 	list := container.NewVBox()
@@ -68,7 +73,11 @@ func (d *Dashboard) ShowLibrary() {
 		isActive := d.engine.GetCurrentBlueprintID() == blueprint.ID
 
 		loadBtn := widget.NewButton("Select", func() {
-			d.engine.UpdatePhases(blueprint.Phases, blueprint.WarningMinutes)
+			wMins := blueprint.WarningValue
+			if blueprint.WarningIsPercent {
+				wMins = (blueprint.WarningValue * blueprint.Total) / 100
+			}
+			d.engine.UpdatePhases(blueprint.Phases, wMins)
 			d.engine.SetCurrentBlueprintID(blueprint.ID)
 			d.ShowLibrary() // Refresh to show selection
 		})
@@ -157,11 +166,15 @@ func (d *Dashboard) ShowEditor(existing *domain.Blueprint) {
 
 	warningEntry := widget.NewEntry()
 	if existing != nil {
-		warningEntry.SetText(strconv.Itoa(existing.WarningMinutes))
+		val := strconv.Itoa(existing.WarningValue)
+		if existing.WarningIsPercent {
+			val += "%"
+		}
+		warningEntry.SetText(val)
 	} else {
 		warningEntry.SetText("5")
 	}
-	warningEntry.PlaceHolder = "Alert at (mins) remaining"
+	warningEntry.PlaceHolder = "Alert at (mins or %)"
 
 	rows := container.NewVBox()
 	summaryLabel := widget.NewLabel("")
@@ -231,7 +244,6 @@ func (d *Dashboard) ShowEditor(existing *domain.Blueprint) {
 	saveBtn := widget.NewButtonWithIcon("Save Blueprint", theme.ConfirmIcon(), func() {
 		newPhases := []domain.Phase{}
 		targetMins, _ := strconv.Atoi(totalEntry.Text)
-		warningMins, _ := strconv.Atoi(warningEntry.Text)
 		
 		for _, row := range rows.Objects {
 			if box, ok := row.(*fyne.Container); ok {
@@ -259,12 +271,17 @@ func (d *Dashboard) ShowEditor(existing *domain.Blueprint) {
 		}
 
 		if err := domain.ValidatePhases(newPhases, targetMins); err == nil {
+			txt := strings.TrimSpace(warningEntry.Text)
+			isPercent := strings.HasSuffix(txt, "%")
+			val, _ := strconv.Atoi(strings.TrimSuffix(txt, "%"))
+			
 			d.saveBlueprint(&domain.Blueprint{
-				ID:             func() string { if existing != nil { return existing.ID }; return uuid.New().String() }(),
-				Name:           nameEntry.Text,
-				Total:          targetMins,
-				WarningMinutes: warningMins,
-				Phases:         newPhases,
+				ID:               func() string { if existing != nil { return existing.ID }; return uuid.New().String() }(),
+				Name:             nameEntry.Text,
+				Total:            targetMins,
+				WarningValue:     val,
+				WarningIsPercent: isPercent,
+				Phases:           newPhases,
 			})
 			d.ShowLibrary()
 		} else {

@@ -7,11 +7,12 @@ import (
 )
 
 type Blueprint struct {
-	ID             string  `json:"id"`
-	Name           string  `json:"name"`
-	Total          int     `json:"total"` // total minutes
-	WarningMinutes int     `json:"warning_minutes"`
-	Phases         []Phase `json:"phases"`
+	ID               string  `json:"id"`
+	Name             string  `json:"name"`
+	Total            int     `json:"total"` // total minutes
+	WarningValue     int     `json:"warning_value"`
+	WarningIsPercent bool    `json:"warning_is_percent"`
+	Phases           []Phase `json:"phases"`
 }
 
 type BlueprintStore struct {
@@ -51,10 +52,11 @@ func (s *BlueprintStore) LoadAll() ([]Blueprint, error) {
 func (s *BlueprintStore) getDefaults() []Blueprint {
 	return []Blueprint{
 		{
-			ID:             "default-interview",
-			Name:           "Standard Interview",
-			Total:          60,
-			WarningMinutes: 5,
+			ID:               "default-interview",
+			Name:             "Standard Interview",
+			Total:            60,
+			WarningValue:     5,
+			WarningIsPercent: false,
 			Phases: []Phase{
 				{Name: "Intro", Duration: 5 * 60},
 				{Name: "Understand", Duration: 10 * 60},
