@@ -80,7 +80,7 @@ func (d *Dashboard) ShowLibrary() {
 			if event.WarningIsPercent {
 				wMins = (event.WarningValue * event.Total) / 100
 			}
-			d.engine.UpdatePhases(event.Phases, wMins)
+			d.engine.UpdatePhases(event.Name, event.Phases, wMins)
 			d.engine.SetCurrentEventID(event.ID)
 			d.store.SaveState(domain.AppState{LastEventID: event.ID}) // Persist last used
 			d.ShowLibrary() // Refresh to show selection
@@ -134,7 +134,7 @@ func (d *Dashboard) ShowLibrary() {
 				mins, _ := strconv.Atoi(minsEntry.Text)
 				warn, _ := strconv.Atoi(warnEntry.Text)
 				if mins > 0 {
-					d.engine.UpdatePhases([]domain.Phase{{Name: "Timer", Duration: mins * 60}}, warn)
+					d.engine.UpdatePhases("Quick Timer", []domain.Phase{{Name: "Timer", Duration: mins * 60}}, warn)
 					d.engine.SetCurrentEventID("quick-timer")
 					d.ShowLibrary()
 				}

@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
@@ -35,6 +36,7 @@ type TimerUI struct {
 	upcomingLabel      *canvas.Text
 	background         *canvas.Rectangle
 	border             *canvas.Rectangle
+	eventNameLabel     *canvas.Text
 
 	playIcon *TappableIcon
 
@@ -86,29 +88,35 @@ func (ui *TimerUI) setup() {
 	// 1. Scaled Main Timer
 	ui.timerLabel = canvas.NewText("00:00", colorBrightGreen)
 	ui.timerLabel.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	ui.timerLabel.TextSize = 24 // Reduced from 28
+	ui.timerLabel.TextSize = 24
 	ui.timerLabel.Alignment = fyne.TextAlignCenter
 
-	// 2. Phase Info
+	// 2. Current Phase Info (Bottom Left)
 	ui.totalLabel = canvas.NewText("PHASE: 00:00", colorSkyBlue)
-	ui.totalLabel.TextSize = 10
+	ui.totalLabel.TextSize = 9
 	ui.totalLabel.TextStyle = fyne.TextStyle{Bold: true}
-	ui.totalLabel.Alignment = fyne.TextAlignCenter
+	ui.totalLabel.Alignment = fyne.TextAlignLeading
 
-	// 3. Upcoming Hint
+	// 3. Compact Upcoming Hint (Top Left)
 	ui.upcomingLabel = canvas.NewText("NEXT: --", colorMutedGray)
 	ui.upcomingLabel.TextSize = 7
 	ui.upcomingLabel.TextStyle = fyne.TextStyle{Bold: true}
 	ui.upcomingLabel.Alignment = fyne.TextAlignLeading
 
+	// 3b. Event Name Context (Bottom Right)
+	ui.eventNameLabel = canvas.NewText("SESSION", colorMutedGray)
+	ui.eventNameLabel.TextSize = 7
+	ui.eventNameLabel.TextStyle = fyne.TextStyle{Bold: true}
+	ui.eventNameLabel.Alignment = fyne.TextAlignTrailing
+
 	// 4. Backgrounds
 	ui.background = canvas.NewRectangle(colorBgDeep)
 	ui.border = canvas.NewRectangle(color.Transparent)
-	ui.border.StrokeColor = color.Transparent // Removed border color
-	ui.border.StrokeWidth = 0                 // Set to 0
+	ui.border.StrokeColor = color.Transparent
+	ui.border.StrokeWidth = 0
 
-	// 5. Accessible Controls (Larger)
-	iconSize := fyne.NewSize(14, 14) // Increased from 11
+	// 5. Accessible Controls (Top Right)
+	iconSize := fyne.NewSize(14, 14)
 	ui.playIcon = NewTappableIcon(theme.MediaPlayIcon(), iconSize, func() { ui.engine.Toggle() })
 	reset := NewTappableIcon(theme.ViewRefreshIcon(), iconSize, func() { ui.engine.Reset() })
 	dash := NewTappableIcon(theme.SettingsIcon(), iconSize, func() { ui.dashboard.Show() })
@@ -116,39 +124,37 @@ func (ui *TimerUI) setup() {
 	controlBg := canvas.NewRectangle(colorBgWell)
 	controlBg.CornerRadius = 4
 	
-	// Spaced container for icons
-	iconContainer := container.NewHBox(
-		ui.playIcon,
-		reset,
-		dash,
-	)
-	
-	controlWell := container.NewStack(
-		controlBg,
-		container.NewPadded(iconContainer), // Re-added padding for better "well" feel
+	iconContainer := container.NewHBox(ui.playIcon, reset, dash)
+	controlWell := container.NewStack(controlBg, container.NewPadded(iconContainer))
+
+	// ASSEMBLY (Balanced Corner Layout)
+	topRow := container.NewHBox(
+		container.NewPadded(ui.upcomingLabel),
+		layout.NewSpacer(),
+		container.NewPadded(controlWell),
 	)
 
-	// ASSEMBLY
-	topRow := container.NewBorder(nil, nil, 
-		ui.upcomingLabel, 
-		controlWell, 
-		nil)
+	bottomRow := container.NewHBox(
+		container.NewPadded(ui.totalLabel),
+		layout.NewSpacer(),
+		container.NewPadded(ui.eventNameLabel),
+	)
 
 	mainLayout := container.NewBorder(
 		topRow,
-		ui.totalLabel,
+		bottomRow,
 		nil, nil,
-		ui.timerLabel,
+		container.NewCenter(ui.timerLabel),
 	)
 
 	content := container.NewStack(
 		ui.background,
 		ui.border,
-		container.NewPadded(mainLayout),
+		mainLayout,
 	)
 
 	ui.window.SetContent(content)
-	ui.window.Resize(fyne.NewSize(160, 80))
+	ui.window.Resize(fyne.NewSize(180, 85)) // Slightly adjusted for balance
 }
 
 func (ui *TimerUI) formatTime(s int) string {
@@ -168,6 +174,8 @@ func (ui *TimerUI) OnTick(state engine.TimerState) {
 		ui.upcomingLabel.Text = ""
 	}
 
+	ui.eventNameLabel.Text = strings.ToUpper(state.EventName)
+
 	if state.IsRunning {
 		ui.playIcon.SetResource(theme.MediaPauseIcon())
 	} else {
@@ -175,15 +183,12 @@ func (ui *TimerUI) OnTick(state engine.TimerState) {
 	}
 
 	if state.TotalRemainingSeconds <= state.WarningSeconds && state.IsRunning {
-		// Alert Mode: Neon Red Flash
 		ui.timerLabel.Color = colorNeonRed
 		ui.background.FillColor = color.NRGBA{R: 45, G: 10, B: 10, A: 245}
 	} else if !state.IsRunning {
-		// Paused Mode: Ghostly Green (Visible but dim)
 		ui.timerLabel.Color = colorGhostGreen
 		ui.background.FillColor = colorBgDeep
 	} else {
-		// Active Mode: Vibrant Bright Green
 		ui.timerLabel.Color = colorBrightGreen
 		ui.background.FillColor = colorBgDeep
 	}
@@ -191,6 +196,7 @@ func (ui *TimerUI) OnTick(state engine.TimerState) {
 	ui.timerLabel.Refresh()
 	ui.totalLabel.Refresh()
 	ui.upcomingLabel.Refresh()
+	ui.eventNameLabel.Refresh()
 	ui.background.Refresh()
 	ui.border.Refresh()
 	ui.playIcon.Refresh()

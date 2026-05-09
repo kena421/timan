@@ -7,6 +7,7 @@ import (
 
 // TimerState holds the current snapshot of the timer's progress and status.
 type TimerState struct {
+	EventName             string
 	CurrentPhaseIndex     int
 	RemainingSeconds      int
 	IsRunning             bool
@@ -42,8 +43,8 @@ func (e *TimerEngine) SetCurrentEventID(id string) {
 	e.currentEventID = id
 }
 
-// NewTimerEngine initializes a new TimerEngine with a set of phases.
-func NewTimerEngine(phases []domain.Phase) *TimerEngine {
+// NewTimerEngine initializes a new TimerEngine with a set of phases and warning threshold.
+func NewTimerEngine(name string, phases []domain.Phase, warningSec int) *TimerEngine {
 	totalSec := 0
 	for _, p := range phases {
 		totalSec += p.Duration
@@ -52,6 +53,7 @@ func NewTimerEngine(phases []domain.Phase) *TimerEngine {
 		phases:   phases,
 		stopChan: make(chan bool),
 		state: TimerState{
+			EventName:             name,
 			CurrentPhaseIndex:     0,
 			RemainingSeconds:      phases[0].Duration,
 			IsRunning:             false,
@@ -59,6 +61,7 @@ func NewTimerEngine(phases []domain.Phase) *TimerEngine {
 			TotalMinutes:          totalSec / 60,
 			TotalDurationSeconds:  totalSec,
 			TotalRemainingSeconds: totalSec,
+			WarningSeconds:        warningSec,
 		},
 	}
 }
@@ -131,12 +134,13 @@ func (e *TimerEngine) ResetPhase() {
 }
 
 // UpdatePhases reconfigures the engine with a new set of phases and alert threshold.
-func (e *TimerEngine) UpdatePhases(phases []domain.Phase, warningMins int) {
+func (e *TimerEngine) UpdatePhases(name string, phases []domain.Phase, warningMins int) {
 	e.phases = phases
 	totalSec := 0
 	for _, p := range phases {
 		totalSec += p.Duration
 	}
+	e.state.EventName = name
 	e.state.TotalMinutes = totalSec / 60
 	e.state.TotalDurationSeconds = totalSec
 	e.state.TotalRemainingSeconds = totalSec
@@ -152,6 +156,7 @@ func (e *TimerEngine) GetPhases() []domain.Phase {
 // GetState returns the current state of the timer.
 func (e *TimerEngine) GetState() TimerState {
 	state := e.state
+	state.EventName = e.state.EventName // Explicitly ensure it's copied
 	if state.CurrentPhaseIndex < len(e.phases)-1 {
 		state.UpcomingPhaseName = e.phases[state.CurrentPhaseIndex+1].Name
 	} else {

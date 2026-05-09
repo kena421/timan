@@ -21,6 +21,8 @@ func main() {
 		{Name: "Wrap-up", Duration: 10 * 60},
 	}
 	lastID := ""
+	eventName := "Standard Session"
+	warningSec := 5 * 60 // Default 5 mins
 
 	// Find the last used event OR the first available event
 	targetID := state.LastEventID
@@ -33,13 +35,20 @@ func main() {
 			if e.ID == targetID {
 				initialPhases = e.Phases
 				lastID = e.ID
+				eventName = e.Name
+				
+				wVal := e.WarningValue
+				if e.WarningIsPercent {
+					wVal = (e.WarningValue * e.Total) / 100
+				}
+				warningSec = wVal * 60
 				break
 			}
 		}
 	}
 
 	// 2. Initialize Engine
-	timerEngine := engine.NewTimerEngine(initialPhases)
+	timerEngine := engine.NewTimerEngine(eventName, initialPhases, warningSec)
 	if lastID != "" {
 		timerEngine.SetCurrentEventID(lastID)
 	}
