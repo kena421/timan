@@ -122,16 +122,17 @@ func (ui *TimerUI) setup() {
 	dash := NewTappableIcon(theme.SettingsIcon(), iconSize, func() { ui.dashboard.Show() })
 
 	controlBg := canvas.NewRectangle(colorBgWell)
+	// Only bottom-left corner rounded to "flush" against top and right edges
 	controlBg.CornerRadius = 4
 	
 	iconContainer := container.NewHBox(ui.playIcon, reset, dash)
 	controlWell := container.NewStack(controlBg, container.NewPadded(iconContainer))
 
-	// ASSEMBLY (Balanced Corner Layout)
+	// ASSEMBLY (Zero-Padding on Controls)
 	topRow := container.NewHBox(
 		container.NewPadded(ui.upcomingLabel),
 		layout.NewSpacer(),
-		container.NewPadded(controlWell),
+		controlWell, // Flushed to the corner
 	)
 
 	bottomRow := container.NewHBox(
@@ -150,11 +151,11 @@ func (ui *TimerUI) setup() {
 	content := container.NewStack(
 		ui.background,
 		ui.border,
-		mainLayout,
+		mainLayout, // Removed outer padding to allow flushing
 	)
 
 	ui.window.SetContent(content)
-	ui.window.Resize(fyne.NewSize(180, 85)) // Slightly adjusted for balance
+	ui.window.Resize(fyne.NewSize(180, 85))
 }
 
 func (ui *TimerUI) formatTime(s int) string {
