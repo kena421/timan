@@ -32,14 +32,22 @@ func NewDashboard(ui *TimerUI, e *engine.TimerEngine) *Dashboard {
 }
 
 func (d *Dashboard) Show() {
-	if d.window == nil {
-		d.window = fyne.CurrentApp().NewWindow("Timer Dashboard")
-		d.mainContent = container.NewStack()
-		d.window.SetContent(d.mainContent)
-		d.window.Resize(fyne.NewSize(500, 600))
+	if d.window != nil {
+		d.window.Close()
 	}
+
+	d.window = fyne.CurrentApp().NewWindow("Timer Dashboard")
+	d.mainContent = container.NewStack()
+	d.window.SetContent(d.mainContent)
+	d.window.Resize(fyne.NewSize(500, 600))
+	
+	d.window.SetOnClosed(func() {
+		d.window = nil
+	})
+
 	d.ShowLibrary()
 	d.window.Show()
+	d.window.RequestFocus()
 }
 
 func (d *Dashboard) ShowLibrary() {

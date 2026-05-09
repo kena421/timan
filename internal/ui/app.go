@@ -86,13 +86,19 @@ func (ui *TimerUI) setup() {
 
 	ui.background = canvas.NewRectangle(color.NRGBA{R: 30, G: 30, B: 30, A: 200})
 
-	// Micro Icons
-	size := fyne.NewSize(16, 16)
-	ui.playIcon = NewTappableIcon(theme.MediaPlayIcon(), size, ui.engine.Toggle)
-	reset := NewTappableIcon(theme.ViewRefreshIcon(), size, ui.engine.Reset)
-	dash := NewTappableIcon(theme.SettingsIcon(), size, ui.dashboard.Show)
+	// Micro Icons (with enlarged hit area)
+	iconSize := fyne.NewSize(16, 16)
+	
+	ui.playIcon = NewTappableIcon(theme.MediaPlayIcon(), iconSize, func() { ui.engine.Toggle() })
+	reset := NewTappableIcon(theme.ViewRefreshIcon(), iconSize, func() { ui.engine.Reset() })
+	dash := NewTappableIcon(theme.SettingsIcon(), iconSize, func() { ui.dashboard.Show() })
 
-	controls := container.NewHBox(ui.playIcon, reset, dash)
+	// Wrap in stack to ensure hit area even if icon resource is small
+	playWrap := container.NewStack(canvas.NewRectangle(color.Transparent), ui.playIcon)
+	resetWrap := container.NewStack(canvas.NewRectangle(color.Transparent), reset)
+	dashWrap := container.NewStack(canvas.NewRectangle(color.Transparent), dash)
+
+	controls := container.NewHBox(playWrap, resetWrap, dashWrap)
 	topBar := container.NewBorder(nil, nil, nil, controls, container.NewCenter(ui.phaseLabel))
 
 	content := container.NewStack(
