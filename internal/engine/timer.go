@@ -137,12 +137,22 @@ func (e *TimerEngine) GetPhases() []domain.Phase {
 	return e.phases
 }
 
+func (e *TimerEngine) GetState() TimerState {
+	state := e.state
+	if state.CurrentPhaseIndex < len(e.phases)-1 {
+		state.UpcomingPhaseName = e.phases[state.CurrentPhaseIndex+1].Name
+	} else {
+		state.UpcomingPhaseName = ""
+	}
+	return state
+}
+
 func (e *TimerEngine) notify() {
 	state := e.state
 	if state.CurrentPhaseIndex < len(e.phases)-1 {
 		state.UpcomingPhaseName = e.phases[state.CurrentPhaseIndex+1].Name
 	} else {
-		state.UpcomingPhaseName = "END"
+		state.UpcomingPhaseName = ""
 	}
 
 	for _, o := range e.observers {

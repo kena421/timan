@@ -59,6 +59,7 @@ func NewTimerUI(w fyne.Window, e *engine.TimerEngine) *TimerUI {
 	ui.dashboard = NewDashboard(ui, e)
 	ui.setup()
 	e.AddObserver(ui)
+	ui.OnTick(e.GetState())
 	return ui
 }
 
@@ -73,7 +74,7 @@ func (ui *TimerUI) setup() {
 	ui.totalLabel.TextStyle = fyne.TextStyle{Bold: true}
 	ui.totalLabel.Alignment = fyne.TextAlignCenter
 
-	ui.upcomingLabel = canvas.NewText("NEXT: NONE", color.NRGBA{R: 120, G: 120, B: 120, A: 255})
+	ui.upcomingLabel = canvas.NewText("", color.NRGBA{R: 120, G: 120, B: 120, A: 255})
 	ui.upcomingLabel.TextSize = 7
 	ui.upcomingLabel.Alignment = fyne.TextAlignCenter
 
@@ -121,7 +122,11 @@ func (ui *TimerUI) OnTick(state engine.TimerState) {
 	ui.totalLabel.Color = color.NRGBA{R: 180, G: 220, B: 255, A: 255} // Light Cyan/Blue for distinction
 	
 	// Upcoming Phase (Subtle)
-	ui.upcomingLabel.Text = "NEXT: " + strings.ToUpper(state.UpcomingPhaseName)
+	if state.UpcomingPhaseName != "" {
+		ui.upcomingLabel.Text = "NEXT: " + strings.ToUpper(state.UpcomingPhaseName)
+	} else {
+		ui.upcomingLabel.Text = ""
+	}
 
 	// Update Play/Pause Icon
 	if state.IsRunning {
